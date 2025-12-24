@@ -1,51 +1,66 @@
-import { createContext, useContext, useState } from 'react'
+import { createContext, useContext, useState, useEffect } from 'react'
+import { authAPI } from '../services/api'
 
 const AuthContext = createContext(null)
 
 export function AuthProvider({ children }) {
   const [user, setUser] = useState(null)
+  const [loading, setLoading] = useState(true)
 
-  const login = (username, password) => {
-    // Simulación de login - en producción esto debería llamar a una API
-    if (username === 'admin' && password === 'admin') {
-      const adminUser = {
-        id: 1,
-        name: 'Roberto Gómez',
-        role: 'admin',
-        username: 'admin'
+  const login = async (username, password) => {
+    try {
+      const response = await authAPI.login(username, password)
+
+      if (response.success) {
+        setUser(response.user)
+        localStorage.setItem('token', response.token)
+        localStorage.setItem('user', JSON.stringify(response.user))
+        return { success: true, user: response.user }
       }
-      setUser(adminUser)
-      localStorage.setItem('user', JSON.stringify(adminUser))
-      return { success: true, user: adminUser }
-    } else if (username === 'juan' && password === 'juan') {
-      const normalUser = {
-        id: 2,
-        name: 'Juan',
-        role: 'user',
-        username: 'juan'
-      }
-      setUser(normalUser)
-      localStorage.setItem('user', JSON.stringify(normalUser))
-      return { success: true, user: normalUser }
+
+      return { success: false, message: 'Error al iniciar sesión' }
+    } catch (error) {
+      console.error('Error en login:', error)
+      return { success: false, message: error.message || 'Usuario o contraseña incorrectos' }
     }
-    return { success: false, message: 'Usuario o contraseña incorrectos' }
   }
 
   const logout = () => {
     setUser(null)
+    localStorage.removeItem('token')
     localStorage.removeItem('user')
   }
 
   // Intentar restaurar sesión del localStorage al cargar
-  useState(() => {
-    const savedUser = localStorage.getItem('user')
-    if (savedUser) {
-      setUser(JSON.parse(savedUser))
+  useEffect(() => {
+    const verifySession = async () => {
+      const token = localStorage.getItem('token')
+      const savedUser = localStorage.getItem('user')
+
+      if (token && savedUser) {
+        try {
+          // Verificar que el token aún es válido
+          const response = await authAPI.verifyToken()
+          if (response.success) {
+            setUser(response.user)
+          } else {
+            // Token inválido, limpiar
+            logout()
+          }
+        } catch (error) {
+          console.error('Error verificando token:', error)
+          logout()
+        }
+      }
+
+      setLoading(false)
     }
-  })
+
+    verifySession()
+  }, [])
 
   return (
-    <AuthContext.Provider value={{ user, login, logout }}>
+    <AuthContext.Provider value={{ user, login, logout, loading }}>
       {children}
     </AuthContext.Provider>
   )
