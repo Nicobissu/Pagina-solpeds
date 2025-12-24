@@ -1,6 +1,6 @@
 import bcrypt from 'bcryptjs';
 import jwt from 'jsonwebtoken';
-import db from '../config/database.js';
+import db, { saveDatabase } from '../config/database.js';
 
 export function login(req, res) {
   const { username, password } = req.body;

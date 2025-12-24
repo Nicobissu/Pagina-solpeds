@@ -14,8 +14,8 @@ dotenv.config();
 const app = express();
 const PORT = process.env.PORT || 3001;
 
-// Inicializar base de datos
-initDatabase();
+// Inicializar base de datos (ahora es asíncrono)
+await initDatabase();
 
 // Middlewares
 app.use(cors());
