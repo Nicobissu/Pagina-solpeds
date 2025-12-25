@@ -273,7 +273,6 @@ function AdminPedidos() {
                 <th>FECHA</th>
                 <th>OBRA</th>
                 <th>CLIENTE</th>
-                <th>DESCRIPCIÓN</th>
                 <th>MONTO</th>
                 <th>SOLICITANTE</th>
                 <th>ESTADO</th>
@@ -287,7 +286,6 @@ function AdminPedidos() {
                   <td>{new Date(pedido.fecha).toLocaleDateString('es-ES', { day: '2-digit', month: 'short' })}</td>
                   <td><strong>{pedido.obra}</strong></td>
                   <td>{pedido.cliente}</td>
-                  <td className="descripcion-cell">{pedido.descripcion?.substring(0, 50)}...</td>
                   <td>{pedido.monto ? `$${pedido.monto.toFixed(2)}` : '---'}</td>
                   <td>
                     <div className="solicitante-cell">
@@ -303,7 +301,7 @@ function AdminPedidos() {
                     </div>
                   </td>
                   <td>
-                    <button className="btn-action" onClick={() => handleItemClick(pedido)}>⚙️</button>
+                    <button className="btn-action" onClick={() => handleItemClick(pedido)} title="Ver detalle y gestionar">👁️</button>
                   </td>
                 </tr>
               ))}
@@ -328,9 +326,44 @@ function AdminPedidos() {
               <p><strong>Solicitante:</strong> {itemSeleccionado.solicitante.nombre}</p>
               <p><strong>Obra:</strong> {itemSeleccionado.obra}</p>
               <p><strong>Cliente:</strong> {itemSeleccionado.cliente}</p>
-              <p><strong>Descripción:</strong> {itemSeleccionado.descripcion}</p>
               {itemSeleccionado.monto && <p><strong>Monto:</strong> ${itemSeleccionado.monto.toFixed(2)}</p>}
               <p><strong>Estado actual:</strong> {itemSeleccionado.estado}</p>
+            </div>
+
+            <div className="info-section" style={{ marginTop: '20px' }}>
+              <h3>Productos Solicitados</h3>
+              {(() => {
+                try {
+                  const productos = JSON.parse(itemSeleccionado.descripcion)
+                  return (
+                    <div style={{ overflowX: 'auto', marginTop: '10px' }}>
+                      <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '0.9em' }}>
+                        <thead>
+                          <tr style={{ borderBottom: '2px solid #ddd', backgroundColor: '#f5f5f5' }}>
+                            <th style={{ padding: '10px', textAlign: 'left' }}>Producto</th>
+                            <th style={{ padding: '10px', textAlign: 'left' }}>Cantidad</th>
+                            <th style={{ padding: '10px', textAlign: 'left' }}>Unidad</th>
+                            <th style={{ padding: '10px', textAlign: 'left' }}>Descripción</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {productos.map((producto, index) => (
+                            <tr key={index} style={{ borderBottom: '1px solid #eee' }}>
+                              <td style={{ padding: '10px' }}><strong>{producto.nombre}</strong></td>
+                              <td style={{ padding: '10px' }}>{producto.cantidad}</td>
+                              <td style={{ padding: '10px' }}>{producto.unidad}</td>
+                              <td style={{ padding: '10px', color: '#666' }}>{producto.descripcion || '---'}</td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    </div>
+                  )
+                } catch (e) {
+                  // Si no es JSON, mostrar como texto plano (compatibilidad con pedidos antiguos)
+                  return <p style={{ marginTop: '10px', whiteSpace: 'pre-wrap' }}>{itemSeleccionado.descripcion}</p>
+                }
+              })()}
             </div>
 
             <div className="form-group">

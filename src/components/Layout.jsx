@@ -13,13 +13,13 @@ function Layout({ children, showSidebar = true }) {
 
   return (
     <div className="layout">
-      {showSidebar && user && user.role !== 'admin' && (
+      {showSidebar && user && (
         <aside className="sidebar">
           <div className="sidebar-header">
             <div className="sidebar-logo">📦</div>
             <div className="sidebar-title">
               <h2>Gestión Taller</h2>
-              <p>{user.role === 'admin' ? 'Admin Role' : 'Admin Role'}</p>
+              <p>{user.role === 'admin' ? 'Administrador' : 'Usuario'}</p>
             </div>
           </div>
 
@@ -31,20 +31,55 @@ function Layout({ children, showSidebar = true }) {
               <span className="nav-icon">🏠</span>
               <span>Inicio</span>
             </button>
-            <button
-              className="nav-item"
-              onClick={() => navigate('/pedidos')}
-            >
-              <span className="nav-icon">📦</span>
-              <span>Pedidos</span>
-            </button>
-            <button
-              className="nav-item"
-              onClick={() => navigate('/compras')}
-            >
-              <span className="nav-icon">🧾</span>
-              <span>Compras</span>
-            </button>
+            {user.role === 'admin' ? (
+              <>
+                <button
+                  className="nav-item"
+                  onClick={() => navigate('/admin/pedidos')}
+                >
+                  <span className="nav-icon">📦</span>
+                  <span>Pedidos</span>
+                </button>
+                <button
+                  className="nav-item"
+                  onClick={() => navigate('/admin/compras')}
+                >
+                  <span className="nav-icon">🧾</span>
+                  <span>Compras</span>
+                </button>
+                <button
+                  className="nav-item"
+                  onClick={() => navigate('/admin/usuarios')}
+                >
+                  <span className="nav-icon">👥</span>
+                  <span>Usuarios</span>
+                </button>
+                <button
+                  className="nav-item"
+                  onClick={() => navigate('/admin/reportes')}
+                >
+                  <span className="nav-icon">📊</span>
+                  <span>Reportes</span>
+                </button>
+              </>
+            ) : (
+              <>
+                <button
+                  className="nav-item"
+                  onClick={() => navigate('/pedidos')}
+                >
+                  <span className="nav-icon">📦</span>
+                  <span>Pedidos</span>
+                </button>
+                <button
+                  className="nav-item"
+                  onClick={() => navigate('/compras')}
+                >
+                  <span className="nav-icon">🧾</span>
+                  <span>Compras</span>
+                </button>
+              </>
+            )}
             <button
               className="nav-item"
               onClick={() => navigate('/notificaciones')}
@@ -52,7 +87,10 @@ function Layout({ children, showSidebar = true }) {
               <span className="nav-icon">🔔</span>
               <span>Notificaciones</span>
             </button>
-            <button className="nav-item">
+            <button
+              className="nav-item"
+              onClick={() => navigate(user.role === 'admin' ? '/admin/configuracion' : '/configuracion')}
+            >
               <span className="nav-icon">⚙️</span>
               <span>Configuración</span>
             </button>

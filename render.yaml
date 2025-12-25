@@ -1,0 +1,18 @@
+services:
+  - type: web
+    name: solpeds-backend
+    env: node
+    region: oregon
+    plan: free
+    rootDir: backend
+    buildCommand: npm install
+    startCommand: npm start
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: JWT_SECRET
+        generateValue: true
+      - key: DATABASE_PATH
+        value: database.sqlite
+      - key: FRONTEND_URL
+        value: https://tu-dominio-en-hostinger.com

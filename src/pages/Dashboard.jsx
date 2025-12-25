@@ -17,11 +17,14 @@ function Dashboard() {
   const [pedidoForm, setPedidoForm] = useState({
     cliente: '',
     obra: '',
-    descripcion: '',
     monto: '',
     urgente: false,
     fotos: 0
   })
+
+  const [productos, setProductos] = useState([
+    { nombre: '', unidad: '', cantidad: '', descripcion: '' }
+  ])
 
   const [compraForm, setCompraForm] = useState({
     proveedor: '',
@@ -52,22 +55,51 @@ function Dashboard() {
     }
   }
 
+  const handleProductoChange = (index, field, value) => {
+    const nuevosProductos = [...productos]
+    nuevosProductos[index][field] = value
+    setProductos(nuevosProductos)
+
+    // Si es la última fila y se están completando los campos obligatorios, agregar una nueva fila vacía
+    const producto = nuevosProductos[index]
+    if (index === productos.length - 1 && producto.nombre && producto.unidad && producto.cantidad) {
+      setProductos([...nuevosProductos, { nombre: '', unidad: '', cantidad: '', descripcion: '' }])
+    }
+  }
+
+  const cerrarModalPedido = () => {
+    setShowPedidoModal(false)
+    setPedidoForm({
+      cliente: '',
+      obra: '',
+      monto: '',
+      urgente: false,
+      fotos: 0
+    })
+    setProductos([{ nombre: '', unidad: '', cantidad: '', descripcion: '' }])
+  }
+
   const handlePedidoSubmit = async (e) => {
     e.preventDefault()
+
+    // Filtrar productos completados (que tengan al menos nombre)
+    const productosValidos = productos.filter(p => p.nombre.trim() !== '')
+
+    if (productosValidos.length === 0) {
+      alert('Debes agregar al menos un producto')
+      return
+    }
+
+    // Convertir productos a descripción en formato JSON para mantener toda la información
+    const descripcion = JSON.stringify(productosValidos)
+
     try {
       await pedidosAPI.create({
         ...pedidoForm,
+        descripcion,
         monto: pedidoForm.monto ? parseFloat(pedidoForm.monto) : null
       })
-      setShowPedidoModal(false)
-      setPedidoForm({
-        cliente: '',
-        obra: '',
-        descripcion: '',
-        monto: '',
-        urgente: false,
-        fotos: 0
-      })
+      cerrarModalPedido()
       // Recargar los datos
       await cargarDatos()
     } catch (error) {
@@ -287,7 +319,7 @@ function Dashboard() {
         </div>
 
         {showPedidoModal && (
-          <Modal title="Crear Nuevo Pedido" onClose={() => setShowPedidoModal(false)}>
+          <Modal title="Crear Nuevo Pedido" onClose={cerrarModalPedido}>
             <form className="modal-form" onSubmit={handlePedidoSubmit}>
               <div className="form-group">
                 <label>Cliente/Taller</label>
@@ -310,14 +342,78 @@ function Dashboard() {
                 />
               </div>
               <div className="form-group">
-                <label>Descripción</label>
-                <textarea
-                  rows="4"
-                  placeholder="Describe los materiales o refacciones necesarias..."
-                  value={pedidoForm.descripcion}
-                  onChange={(e) => setPedidoForm({ ...pedidoForm, descripcion: e.target.value })}
-                  required
-                ></textarea>
+                <label>Productos</label>
+                <div style={{ overflowX: 'auto' }}>
+                  <table style={{ width: '100%', borderCollapse: 'collapse' }}>
+                    <thead>
+                      <tr style={{ borderBottom: '2px solid #ddd' }}>
+                        <th style={{ padding: '8px', textAlign: 'left' }}>Nombre del Producto</th>
+                        <th style={{ padding: '8px', textAlign: 'left', width: '120px' }}>Unidad</th>
+                        <th style={{ padding: '8px', textAlign: 'left', width: '80px' }}>Cantidad</th>
+                        <th style={{ padding: '8px', textAlign: 'left', width: '200px' }}>Descripción (opcional)</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {productos.map((producto, index) => (
+                        <tr key={index} style={{ borderBottom: '1px solid #eee' }}>
+                          <td style={{ padding: '8px' }}>
+                            <input
+                              type="text"
+                              placeholder="Ej: Cemento Portland"
+                              value={producto.nombre}
+                              onChange={(e) => handleProductoChange(index, 'nombre', e.target.value)}
+                              style={{ width: '100%', padding: '6px', border: '1px solid #ddd', borderRadius: '4px' }}
+                            />
+                          </td>
+                          <td style={{ padding: '8px' }}>
+                            <select
+                              value={producto.unidad}
+                              onChange={(e) => handleProductoChange(index, 'unidad', e.target.value)}
+                              style={{ width: '100%', padding: '6px', border: '1px solid #ddd', borderRadius: '4px' }}
+                            >
+                              <option value="">Seleccionar</option>
+                              <option value="kg">kg</option>
+                              <option value="g">g</option>
+                              <option value="lb">lb</option>
+                              <option value="ton">ton</option>
+                              <option value="L">L</option>
+                              <option value="ml">ml</option>
+                              <option value="gal">gal</option>
+                              <option value="m">m</option>
+                              <option value="cm">cm</option>
+                              <option value="mm">mm</option>
+                              <option value="m²">m²</option>
+                              <option value="m³">m³</option>
+                              <option value="pza">pza</option>
+                              <option value="caja">caja</option>
+                              <option value="paquete">paquete</option>
+                              <option value="bulto">bulto</option>
+                              <option value="unidad">unidad</option>
+                            </select>
+                          </td>
+                          <td style={{ padding: '8px' }}>
+                            <input
+                              type="text"
+                              placeholder="Ej: 10"
+                              value={producto.cantidad}
+                              onChange={(e) => handleProductoChange(index, 'cantidad', e.target.value)}
+                              style={{ width: '100%', padding: '6px', border: '1px solid #ddd', borderRadius: '4px' }}
+                            />
+                          </td>
+                          <td style={{ padding: '8px' }}>
+                            <input
+                              type="text"
+                              placeholder="Detalles adicionales..."
+                              value={producto.descripcion}
+                              onChange={(e) => handleProductoChange(index, 'descripcion', e.target.value)}
+                              style={{ width: '100%', padding: '6px', border: '1px solid #ddd', borderRadius: '4px' }}
+                            />
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
               </div>
               <div className="form-group">
                 <label>Monto (opcional)</label>
@@ -349,7 +445,7 @@ function Dashboard() {
                 </label>
               </div>
               <div className="modal-actions">
-                <button type="button" className="btn-secondary" onClick={() => setShowPedidoModal(false)}>
+                <button type="button" className="btn-secondary" onClick={cerrarModalPedido}>
                   Cancelar
                 </button>
                 <button type="submit" className="btn-primary">

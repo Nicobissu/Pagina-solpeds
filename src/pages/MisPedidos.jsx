@@ -128,7 +128,27 @@ function MisPedidos() {
                     <span className="pedido-time">{formatearTiempo(pedido.fecha)}</span>
                   </div>
                   <h3 className="pedido-title">{pedido.obra} - {pedido.cliente}</h3>
-                  <p className="pedido-description">{pedido.descripcion}</p>
+                  {(() => {
+                    try {
+                      const productos = JSON.parse(pedido.descripcion)
+                      return (
+                        <div className="productos-lista" style={{ marginTop: '10px', fontSize: '0.9em' }}>
+                          <strong>Productos:</strong>
+                          <ul style={{ margin: '5px 0', paddingLeft: '20px' }}>
+                            {productos.map((producto, idx) => (
+                              <li key={idx}>
+                                {producto.nombre} - {producto.cantidad} {producto.unidad}
+                                {producto.descripcion && <span style={{ color: '#666' }}> ({producto.descripcion})</span>}
+                              </li>
+                            ))}
+                          </ul>
+                        </div>
+                      )
+                    } catch (e) {
+                      // Si no es JSON, mostrar como texto (compatibilidad con pedidos antiguos)
+                      return <p className="pedido-description">{pedido.descripcion}</p>
+                    }
+                  })()}
 
                   <div className="pedido-details">
                     {pedido.fotos > 0 && (

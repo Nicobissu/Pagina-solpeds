@@ -14,7 +14,8 @@
     "start": "concurrently \"npm run backend:start\" \"npm run dev\" --names \"backend,frontend\" --prefix-colors \"blue,green\"",
     "start:all": "npm run start",
     "install:all": "npm install && npm run backend:install",
-    "setup": "npm run install:all && npm run backend:init"
+    "setup": "npm run install:all && npm run backend:init",
+    "deploy:build": "npm install && npm run build && cd backend && npm install"
   },
   "dependencies": {
     "react": "^18.2.0",
