@@ -1,6 +1,6 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { useAuth } from '../contexts/AuthContext'
-import { compras } from '../data/mockData'
+import { comprasAPI } from '../services/api'
 import Layout from '../components/Layout'
 import './MisCompras.css'
 
@@ -8,9 +8,24 @@ function MisCompras() {
   const { user } = useAuth()
   const [filtroObra, setFiltroObra] = useState('todas')
   const [sinTicket, setSinTicket] = useState(false)
+  const [misCompras, setMisCompras] = useState([])
+  const [loading, setLoading] = useState(true)
 
-  // Filtrar solo las compras del usuario actual
-  const misCompras = compras.filter(c => c.solicitante.id === user.id)
+  useEffect(() => {
+    cargarCompras()
+  }, [user])
+
+  const cargarCompras = async () => {
+    try {
+      setLoading(true)
+      const data = await comprasAPI.getAll(user.id, user.role === 'admin')
+      setMisCompras(data)
+    } catch (error) {
+      console.error('Error al cargar compras:', error)
+    } finally {
+      setLoading(false)
+    }
+  }
 
   const comprasFiltradas = misCompras.filter(compra => {
     let pasa = true
@@ -26,6 +41,16 @@ function MisCompras() {
     return date.toLocaleDateString('es-ES', { day: '2-digit', month: 'short', year: 'numeric' })
   }
 
+  if (loading) {
+    return (
+      <Layout>
+        <div className="mis-compras">
+          <p>Cargando compras...</p>
+        </div>
+      </Layout>
+    )
+  }
+
   return (
     <Layout>
       <div className="mis-compras">
@@ -34,7 +59,7 @@ function MisCompras() {
             <h1>Mis Compras</h1>
             <p>Gestiona y revisa tus gastos personales por obra.</p>
           </div>
-          <button className="btn-registrar-gasto">+ Registrar Gasto</button>
+          <button className="btn-registrar-gasto" onClick={() => window.location.href = '/'}>+ Registrar Gasto</button>
         </div>
 
         <div className="tabs">
@@ -88,6 +113,10 @@ function MisCompras() {
 
               <div className="compra-info-grid">
                 <div className="info-item">
+                  <span className="info-label">Proveedor</span>
+                  <span className="info-value">{compra.proveedor}</span>
+                </div>
+                <div className="info-item">
                   <span className="info-label">Obra</span>
                   <span className="info-value">{compra.obra}</span>
                 </div>
@@ -102,7 +131,7 @@ function MisCompras() {
                   {compra.ticket ? (
                     <span className="status-badge subido">
                       <span className="status-dot"></span>
-                      Subido
+                      Subido ({compra.ticket})
                     </span>
                   ) : (
                     <span className="status-badge pendiente">
@@ -120,6 +149,12 @@ function MisCompras() {
               {!compra.ticket && (
                 <div className="ticket-icon">🧾</div>
               )}
+
+              {compra.solicitante && (
+                <div className="compra-solicitante">
+                  <span>{compra.solicitante.avatar} {compra.solicitante.nombre}</span>
+                </div>
+              )}
             </div>
           ))}
 
@@ -129,8 +164,6 @@ function MisCompras() {
             </div>
           )}
         </div>
-
-        <button className="btn-load-more">Cargar más</button>
       </div>
     </Layout>
   )

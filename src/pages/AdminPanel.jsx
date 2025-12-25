@@ -1,7 +1,8 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useAuth } from '../contexts/AuthContext'
-import { pedidos, compras } from '../data/mockData'
+import { pedidosAPI, comprasAPI, notificacionesAPI } from '../services/api'
+import Modal from '../components/Modal'
 import './AdminPanel.css'
 
 function AdminPanel() {
@@ -9,6 +10,32 @@ function AdminPanel() {
   const navigate = useNavigate()
   const [filtroEstado, setFiltroEstado] = useState('nuevos')
   const [busqueda, setBusqueda] = useState('')
+  const [pedidos, setPedidos] = useState([])
+  const [compras, setCompras] = useState([])
+  const [loading, setLoading] = useState(true)
+  const [itemSeleccionado, setItemSeleccionado] = useState(null)
+  const [showModal, setShowModal] = useState(false)
+  const [comentario, setComentario] = useState('')
+
+  useEffect(() => {
+    cargarDatos()
+  }, [])
+
+  const cargarDatos = async () => {
+    try {
+      setLoading(true)
+      const [pedidosData, comprasData] = await Promise.all([
+        pedidosAPI.getAll(user.id, true),
+        comprasAPI.getAll(user.id, true)
+      ])
+      setPedidos(pedidosData)
+      setCompras(comprasData)
+    } catch (error) {
+      console.error('Error al cargar datos:', error)
+    } finally {
+      setLoading(false)
+    }
+  }
 
   // Combinar pedidos y compras
   const todosCombinados = [
@@ -82,6 +109,85 @@ function AdminPanel() {
     }
   }
 
+  const handleItemClick = (item) => {
+    setItemSeleccionado(item)
+    setShowModal(true)
+    setComentario('')
+  }
+
+  const handleCambiarEstado = async (nuevoEstado) => {
+    if (!itemSeleccionado) return
+
+    try {
+      if (itemSeleccionado.tipo === 'Pedido') {
+        await pedidosAPI.update(itemSeleccionado.id, { estado: nuevoEstado })
+      } else {
+        await comprasAPI.update(itemSeleccionado.id, { estado: nuevoEstado })
+      }
+      await cargarDatos()
+      setShowModal(false)
+    } catch (error) {
+      console.error('Error al cambiar estado:', error)
+      alert('Error al cambiar el estado')
+    }
+  }
+
+  const handleEnviarComentario = async () => {
+    if (!itemSeleccionado || !comentario.trim()) return
+
+    try {
+      if (itemSeleccionado.tipo === 'Pedido') {
+        await pedidosAPI.addComentario(itemSeleccionado.id, comentario)
+      }
+
+      // Crear notificación para el usuario
+      await notificacionesAPI.create({
+        usuario_id: itemSeleccionado.solicitante.id,
+        tipo: 'warning',
+        titulo: `Comentario en ${itemSeleccionado.tipo} #${itemSeleccionado.id}`,
+        mensaje: comentario,
+        icono: '💬'
+      })
+
+      await cargarDatos()
+      setComentario('')
+      alert('Comentario enviado y notificación creada')
+    } catch (error) {
+      console.error('Error al enviar comentario:', error)
+      alert('Error al enviar el comentario')
+    }
+  }
+
+  const handleMarcarIncompleto = async () => {
+    if (!itemSeleccionado) return
+
+    try {
+      if (itemSeleccionado.tipo === 'Pedido') {
+        await pedidosAPI.update(itemSeleccionado.id, { incompleto: 1 })
+      }
+
+      // Crear notificación
+      await notificacionesAPI.create({
+        usuario_id: itemSeleccionado.solicitante.id,
+        tipo: 'warning',
+        titulo: `${itemSeleccionado.tipo} marcado como incompleto`,
+        mensaje: `Tu ${itemSeleccionado.tipo.toLowerCase()} #${itemSeleccionado.id} ha sido marcado como incompleto. Por favor, revisa la información.`,
+        icono: '⚠️'
+      })
+
+      await cargarDatos()
+      setShowModal(false)
+      alert('Marcado como incompleto y notificación enviada')
+    } catch (error) {
+      console.error('Error:', error)
+      alert('Error al marcar como incompleto')
+    }
+  }
+
+  if (loading) {
+    return <div className="admin-panel"><p>Cargando...</p></div>
+  }
+
   return (
     <div className="admin-panel">
       <aside className="admin-sidebar">
@@ -146,7 +252,7 @@ function AdminPanel() {
             <h1>Bandeja de Entrada</h1>
             <p>Gestión y aprobación de pedidos y compras recientes.</p>
           </div>
-          <button className="btn-nueva-solicitud">+ Nueva Solicitud</button>
+          <button className="btn-nueva-solicitud" onClick={() => navigate('/')}>+ Nueva Solicitud</button>
         </div>
 
         <div className="admin-tabs">
@@ -196,7 +302,7 @@ function AdminPanel() {
             />
           </div>
           <button className="filter-btn">📅 Seleccionar fechas</button>
-          <button className="filter-btn">🔽</button>
+          <button className="filter-btn" onClick={cargarDatos}>🔄 Actualizar</button>
         </div>
 
         <div className="admin-table-container">
@@ -210,10 +316,11 @@ function AdminPanel() {
                 <th>MONTO/CANT.</th>
                 <th>SOLICITANTE</th>
                 <th>ESTADO</th>
+                <th>ACCIONES</th>
               </tr>
             </thead>
             <tbody>
-              {itemsFiltrados.slice(0, 6).map(item => {
+              {itemsFiltrados.map(item => {
                 const badge = getEstadoBadge(item)
                 return (
                   <tr key={`${item.tipo}-${item.id}`}>
@@ -248,6 +355,15 @@ function AdminPanel() {
                         {item.incompleto && <span className="incompleto-icon">⚠️</span>}
                       </div>
                     </td>
+                    <td>
+                      <button
+                        className="btn-action"
+                        onClick={() => handleItemClick(item)}
+                        title="Gestionar"
+                      >
+                        ⚙️
+                      </button>
+                    </td>
                   </tr>
                 )
               })}
@@ -261,14 +377,82 @@ function AdminPanel() {
           )}
 
           <div className="table-footer">
-            <p>Mostrando 1-6 de {itemsFiltrados.length} resultados</p>
-            <div className="pagination">
-              <button className="pagination-btn">Anterior</button>
-              <button className="pagination-btn">Siguiente</button>
-            </div>
+            <p>Mostrando {itemsFiltrados.length} resultados</p>
           </div>
         </div>
       </main>
+
+      {showModal && itemSeleccionado && (
+        <Modal
+          title={`Gestionar ${itemSeleccionado.tipo} #${itemSeleccionado.id}`}
+          onClose={() => setShowModal(false)}
+        >
+          <div className="modal-form">
+            <div className="info-section">
+              <h3>Información</h3>
+              <p><strong>Solicitante:</strong> {itemSeleccionado.solicitante.nombre}</p>
+              <p><strong>Obra:</strong> {itemSeleccionado.obra || itemSeleccionado.cliente}</p>
+              <p><strong>Descripción:</strong> {itemSeleccionado.descripcion}</p>
+              {itemSeleccionado.monto && <p><strong>Monto:</strong> ${itemSeleccionado.monto.toFixed(2)}</p>}
+              <p><strong>Estado actual:</strong> {itemSeleccionado.estado}</p>
+            </div>
+
+            <div className="form-group">
+              <h3>Cambiar Estado</h3>
+              <div className="estado-buttons">
+                {itemSeleccionado.tipo === 'Pedido' ? (
+                  <>
+                    <button onClick={() => handleCambiarEstado('En Proceso')} className="btn-estado">En Proceso</button>
+                    <button onClick={() => handleCambiarEstado('Revisado')} className="btn-estado">Revisado</button>
+                    <button onClick={() => handleCambiarEstado('Completado')} className="btn-estado">Completado</button>
+                    <button onClick={() => handleCambiarEstado('Cerrado')} className="btn-estado">Cerrado</button>
+                  </>
+                ) : (
+                  <>
+                    <button onClick={() => handleCambiarEstado('Subido')} className="btn-estado">Subido</button>
+                    <button onClick={() => handleCambiarEstado('Pendiente')} className="btn-estado">Pendiente</button>
+                  </>
+                )}
+              </div>
+            </div>
+
+            <div className="form-group">
+              <h3>Acciones</h3>
+              <button
+                onClick={handleMarcarIncompleto}
+                className="btn-warning"
+                style={{ marginBottom: '10px', width: '100%' }}
+              >
+                ⚠️ Marcar como Incompleto y Notificar
+              </button>
+            </div>
+
+            <div className="form-group">
+              <h3>Agregar Comentario / Notificación</h3>
+              <textarea
+                rows="4"
+                placeholder="Escribe un comentario o instrucciones para el usuario..."
+                value={comentario}
+                onChange={(e) => setComentario(e.target.value)}
+              ></textarea>
+              <button
+                onClick={handleEnviarComentario}
+                className="btn-primary"
+                disabled={!comentario.trim()}
+                style={{ marginTop: '10px' }}
+              >
+                💬 Enviar Comentario y Notificar
+              </button>
+            </div>
+
+            <div className="modal-actions" style={{ marginTop: '20px' }}>
+              <button type="button" className="btn-secondary" onClick={() => setShowModal(false)}>
+                Cerrar
+              </button>
+            </div>
+          </div>
+        </Modal>
+      )}
     </div>
   )
 }

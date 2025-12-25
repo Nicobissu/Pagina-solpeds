@@ -1,15 +1,30 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { useAuth } from '../contexts/AuthContext'
-import { pedidos } from '../data/mockData'
+import { pedidosAPI } from '../services/api'
 import Layout from '../components/Layout'
 import './MisPedidos.css'
 
 function MisPedidos() {
   const { user } = useAuth()
   const [filtro, setFiltro] = useState('todos')
+  const [misPedidos, setMisPedidos] = useState([])
+  const [loading, setLoading] = useState(true)
 
-  // Filtrar solo los pedidos del usuario actual
-  const misPedidos = pedidos.filter(p => p.solicitante.id === user.id)
+  useEffect(() => {
+    cargarPedidos()
+  }, [user])
+
+  const cargarPedidos = async () => {
+    try {
+      setLoading(true)
+      const data = await pedidosAPI.getAll(user.id, user.role === 'admin')
+      setMisPedidos(data)
+    } catch (error) {
+      console.error('Error al cargar pedidos:', error)
+    } finally {
+      setLoading(false)
+    }
+  }
 
   const pedidosFiltrados = misPedidos.filter(pedido => {
     if (filtro === 'urgentes') return pedido.urgente
@@ -53,6 +68,16 @@ function MisPedidos() {
     return `Hace ${dias} día${dias > 1 ? 's' : ''}`
   }
 
+  if (loading) {
+    return (
+      <Layout>
+        <div className="mis-pedidos">
+          <p>Cargando pedidos...</p>
+        </div>
+      </Layout>
+    )
+  }
+
   return (
     <Layout>
       <div className="mis-pedidos">
@@ -61,7 +86,7 @@ function MisPedidos() {
             <h1>Mis Pedidos</h1>
             <p>Gestiona y rastrea el estado de tus requisiciones.</p>
           </div>
-          <button className="btn-new-pedido">+ Nuevo Pedido</button>
+          <button className="btn-new-pedido" onClick={() => window.location.href = '/'}>+ Nuevo Pedido</button>
         </div>
 
         <div className="tabs">
@@ -109,6 +134,9 @@ function MisPedidos() {
                     {pedido.fotos > 0 && (
                       <span className="detail-badge">📸 {pedido.fotos} fotos</span>
                     )}
+                    {pedido.monto && (
+                      <span className="detail-badge">💰 ${pedido.monto.toFixed(2)}</span>
+                    )}
                     {pedido.incompleto && (
                       <span className="detail-badge warning">❗ Incompleto</span>
                     )}
@@ -117,11 +145,17 @@ function MisPedidos() {
                     )}
                   </div>
 
-                  {pedido.comentarios.length > 0 && (
+                  {pedido.comentarios && pedido.comentarios.length > 0 && (
                     <div className="pedido-comments">
                       {pedido.comentarios.map((comentario, idx) => (
                         <p key={idx} className="comment">{comentario}</p>
                       ))}
+                    </div>
+                  )}
+
+                  {pedido.solicitante && (
+                    <div className="pedido-solicitante">
+                      <span>{pedido.solicitante.avatar} {pedido.solicitante.nombre}</span>
                     </div>
                   )}
                 </div>
@@ -135,8 +169,6 @@ function MisPedidos() {
               <p>No se encontraron pedidos con los filtros seleccionados.</p>
             </div>
           )}
-
-          <button className="btn-load-more">Cargar más pedidos...</button>
         </div>
       </div>
     </Layout>

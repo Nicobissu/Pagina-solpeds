@@ -1,6 +1,6 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { useAuth } from '../contexts/AuthContext'
-import { pedidos, compras } from '../data/mockData'
+import { pedidosAPI, comprasAPI } from '../services/api'
 import Layout from '../components/Layout'
 import Modal from '../components/Modal'
 import './Dashboard.css'
@@ -9,10 +9,96 @@ function Dashboard() {
   const { user } = useAuth()
   const [showPedidoModal, setShowPedidoModal] = useState(false)
   const [showCompraModal, setShowCompraModal] = useState(false)
+  const [misPedidos, setMisPedidos] = useState([])
+  const [misCompras, setMisCompras] = useState([])
+  const [loading, setLoading] = useState(true)
 
-  // Filtrar solo los pedidos/compras del usuario actual
-  const misPedidos = pedidos.filter(p => p.solicitante.id === user.id)
-  const misCompras = compras.filter(c => c.solicitante.id === user.id)
+  // Formularios
+  const [pedidoForm, setPedidoForm] = useState({
+    cliente: '',
+    obra: '',
+    descripcion: '',
+    monto: '',
+    urgente: false,
+    fotos: 0
+  })
+
+  const [compraForm, setCompraForm] = useState({
+    proveedor: '',
+    obra: '',
+    monto: '',
+    descripcion: '',
+    ticket: '',
+    urgente: false
+  })
+
+  useEffect(() => {
+    cargarDatos()
+  }, [user])
+
+  const cargarDatos = async () => {
+    try {
+      setLoading(true)
+      const [pedidosData, comprasData] = await Promise.all([
+        pedidosAPI.getAll(user.id, user.role === 'admin'),
+        comprasAPI.getAll(user.id, user.role === 'admin')
+      ])
+      setMisPedidos(pedidosData)
+      setMisCompras(comprasData)
+    } catch (error) {
+      console.error('Error al cargar datos:', error)
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  const handlePedidoSubmit = async (e) => {
+    e.preventDefault()
+    try {
+      await pedidosAPI.create({
+        ...pedidoForm,
+        monto: pedidoForm.monto ? parseFloat(pedidoForm.monto) : null
+      })
+      setShowPedidoModal(false)
+      setPedidoForm({
+        cliente: '',
+        obra: '',
+        descripcion: '',
+        monto: '',
+        urgente: false,
+        fotos: 0
+      })
+      // Recargar los datos
+      await cargarDatos()
+    } catch (error) {
+      console.error('Error al crear pedido:', error)
+      alert('Error al crear el pedido')
+    }
+  }
+
+  const handleCompraSubmit = async (e) => {
+    e.preventDefault()
+    try {
+      await comprasAPI.create({
+        ...compraForm,
+        monto: parseFloat(compraForm.monto)
+      })
+      setShowCompraModal(false)
+      setCompraForm({
+        proveedor: '',
+        obra: '',
+        monto: '',
+        descripcion: '',
+        ticket: '',
+        urgente: false
+      })
+      // Recargar los datos
+      await cargarDatos()
+    } catch (error) {
+      console.error('Error al crear compra:', error)
+      alert('Error al registrar la compra')
+    }
+  }
 
   // Estadísticas
   const pedidosSinFotos = misPedidos.filter(p => p.fotos === 0).length
@@ -46,6 +132,16 @@ function Dashboard() {
       'Subido': 'badge-success'
     }
     return map[estado] || 'badge-info'
+  }
+
+  if (loading) {
+    return (
+      <Layout>
+        <div className="dashboard">
+          <p>Cargando...</p>
+        </div>
+      </Layout>
+    )
   }
 
   return (
@@ -139,6 +235,11 @@ function Dashboard() {
                       </td>
                     </tr>
                   ))}
+                  {ultimosPedidos.length === 0 && (
+                    <tr>
+                      <td colSpan="4" style={{ textAlign: 'center' }}>No hay pedidos recientes</td>
+                    </tr>
+                  )}
                 </tbody>
               </table>
             </div>
@@ -174,6 +275,11 @@ function Dashboard() {
                       </td>
                     </tr>
                   ))}
+                  {ultimasCompras.length === 0 && (
+                    <tr>
+                      <td colSpan="4" style={{ textAlign: 'center' }}>No hay compras recientes</td>
+                    </tr>
+                  )}
                 </tbody>
               </table>
             </div>
@@ -182,22 +288,65 @@ function Dashboard() {
 
         {showPedidoModal && (
           <Modal title="Crear Nuevo Pedido" onClose={() => setShowPedidoModal(false)}>
-            <form className="modal-form">
+            <form className="modal-form" onSubmit={handlePedidoSubmit}>
               <div className="form-group">
                 <label>Cliente/Taller</label>
-                <input type="text" placeholder="Ej: Taller Central" required />
+                <input
+                  type="text"
+                  placeholder="Ej: Taller Central"
+                  value={pedidoForm.cliente}
+                  onChange={(e) => setPedidoForm({ ...pedidoForm, cliente: e.target.value })}
+                  required
+                />
               </div>
               <div className="form-group">
                 <label>Obra</label>
-                <input type="text" placeholder="Ej: Torre Central" required />
+                <input
+                  type="text"
+                  placeholder="Ej: Torre Central"
+                  value={pedidoForm.obra}
+                  onChange={(e) => setPedidoForm({ ...pedidoForm, obra: e.target.value })}
+                  required
+                />
               </div>
               <div className="form-group">
                 <label>Descripción</label>
-                <textarea rows="4" placeholder="Describe los materiales o refacciones necesarias..." required></textarea>
+                <textarea
+                  rows="4"
+                  placeholder="Describe los materiales o refacciones necesarias..."
+                  value={pedidoForm.descripcion}
+                  onChange={(e) => setPedidoForm({ ...pedidoForm, descripcion: e.target.value })}
+                  required
+                ></textarea>
               </div>
               <div className="form-group">
-                <label>Urgente</label>
-                <input type="checkbox" />
+                <label>Monto (opcional)</label>
+                <input
+                  type="number"
+                  step="0.01"
+                  placeholder="0.00"
+                  value={pedidoForm.monto}
+                  onChange={(e) => setPedidoForm({ ...pedidoForm, monto: e.target.value })}
+                />
+              </div>
+              <div className="form-group">
+                <label>Número de fotos</label>
+                <input
+                  type="number"
+                  placeholder="0"
+                  value={pedidoForm.fotos}
+                  onChange={(e) => setPedidoForm({ ...pedidoForm, fotos: parseInt(e.target.value) || 0 })}
+                />
+              </div>
+              <div className="form-group">
+                <label>
+                  <input
+                    type="checkbox"
+                    checked={pedidoForm.urgente}
+                    onChange={(e) => setPedidoForm({ ...pedidoForm, urgente: e.target.checked })}
+                  />
+                  {' '}Urgente
+                </label>
               </div>
               <div className="modal-actions">
                 <button type="button" className="btn-secondary" onClick={() => setShowPedidoModal(false)}>
@@ -213,26 +362,66 @@ function Dashboard() {
 
         {showCompraModal && (
           <Modal title="Registrar Nueva Compra" onClose={() => setShowCompraModal(false)}>
-            <form className="modal-form">
+            <form className="modal-form" onSubmit={handleCompraSubmit}>
               <div className="form-group">
                 <label>Proveedor</label>
-                <input type="text" placeholder="Ej: Ferretería López" required />
+                <input
+                  type="text"
+                  placeholder="Ej: Ferretería López"
+                  value={compraForm.proveedor}
+                  onChange={(e) => setCompraForm({ ...compraForm, proveedor: e.target.value })}
+                  required
+                />
               </div>
               <div className="form-group">
                 <label>Obra</label>
-                <input type="text" placeholder="Ej: Torre Central" required />
+                <input
+                  type="text"
+                  placeholder="Ej: Torre Central"
+                  value={compraForm.obra}
+                  onChange={(e) => setCompraForm({ ...compraForm, obra: e.target.value })}
+                  required
+                />
               </div>
               <div className="form-group">
                 <label>Monto</label>
-                <input type="number" step="0.01" placeholder="0.00" required />
+                <input
+                  type="number"
+                  step="0.01"
+                  placeholder="0.00"
+                  value={compraForm.monto}
+                  onChange={(e) => setCompraForm({ ...compraForm, monto: e.target.value })}
+                  required
+                />
               </div>
               <div className="form-group">
                 <label>Descripción</label>
-                <textarea rows="4" placeholder="Describe la compra realizada..." required></textarea>
+                <textarea
+                  rows="4"
+                  placeholder="Describe la compra realizada..."
+                  value={compraForm.descripcion}
+                  onChange={(e) => setCompraForm({ ...compraForm, descripcion: e.target.value })}
+                  required
+                ></textarea>
               </div>
               <div className="form-group">
-                <label>Ticket/Factura</label>
-                <input type="file" accept="image/*,.pdf" />
+                <label>Ticket/Factura (número o referencia)</label>
+                <input
+                  type="text"
+                  placeholder="Ej: TCK-123"
+                  value={compraForm.ticket}
+                  onChange={(e) => setCompraForm({ ...compraForm, ticket: e.target.value })}
+                />
+              </div>
+              <div className="form-group">
+                <label>
+                  <input
+                    type="checkbox"
+                    checked={compraForm.urgente}
+                    onChange={(e) => setCompraForm({ ...compraForm, urgente: e.target.checked })}
+                  />
+                  {' '}Urgente
+                </label>
               </div>
               <div className="modal-actions">
                 <button type="button" className="btn-secondary" onClick={() => setShowCompraModal(false)}>

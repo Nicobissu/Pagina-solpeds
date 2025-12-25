@@ -456,3 +456,78 @@
     min-width: 800px;
   }
 }
+
+/* Estilos adicionales para el modal de gestión */
+.btn-action {
+  background: transparent;
+  border: none;
+  font-size: 1.25rem;
+  cursor: pointer;
+  padding: 0.25rem 0.5rem;
+  transition: transform 0.2s;
+}
+
+.btn-action:hover {
+  transform: scale(1.2);
+}
+
+.info-section {
+  background-color: var(--bg-secondary);
+  padding: 1rem;
+  border-radius: 8px;
+  margin-bottom: 1.5rem;
+}
+
+.info-section h3 {
+  margin-top: 0;
+  margin-bottom: 1rem;
+  font-size: 1rem;
+  color: var(--text-primary);
+}
+
+.info-section p {
+  margin: 0.5rem 0;
+  font-size: 0.875rem;
+  color: var(--text-secondary);
+}
+
+.estado-buttons {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  margin-top: 0.5rem;
+}
+
+.btn-estado {
+  background: white;
+  border: 2px solid var(--border-color);
+  padding: 0.5rem 1rem;
+  border-radius: 6px;
+  font-size: 0.875rem;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.btn-estado:hover {
+  border-color: var(--primary-color);
+  background-color: var(--primary-color);
+  color: white;
+  transform: translateY(-1px);
+}
+
+.btn-warning {
+  background-color: #fef3c7;
+  border: 2px solid #f59e0b;
+  color: #92400e;
+  padding: 0.75rem 1rem;
+  border-radius: 8px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.btn-warning:hover {
+  background-color: #fde68a;
+  transform: translateY(-1px);
+}

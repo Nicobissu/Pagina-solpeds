@@ -11,7 +11,8 @@
     "backend:init": "cd backend && npm run init-db",
     "backend:dev": "cd backend && npm run dev",
     "backend:start": "cd backend && npm start",
-    "start:all": "concurrently \"npm run backend:dev\" \"npm run dev\"",
+    "start": "concurrently \"npm run backend:start\" \"npm run dev\" --names \"backend,frontend\" --prefix-colors \"blue,green\"",
+    "start:all": "npm run start",
     "install:all": "npm install && npm run backend:install",
     "setup": "npm run install:all && npm run backend:init"
   },
