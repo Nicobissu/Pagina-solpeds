@@ -46,10 +46,12 @@ El sistema crea automáticamente los siguientes usuarios:
 - Marcar pedidos como urgentes
 
 ### Para Administradores:
-- Ver todos los pedidos y compras de todos los usuarios
-- Actualizar estados de pedidos
-- Revisar y aprobar solicitudes
-- Gestionar toda la información del sistema
+- Ver todos los pedidos y compras de todos los usuarios en la Bandeja de Entrada
+- **Pedidos**: Página dedicada para gestionar pedidos, cambiar estados, agregar comentarios y marcar como incompletos
+- **Compras**: Página dedicada para gestionar compras, marcar como urgentes y agregar comentarios
+- **Usuarios**: Ver estadísticas de usuarios (compras por mes, total gastado, frecuencia de pedidos)
+- **Reportes**: Visualizar estadísticas generales por área y top proveedores
+- **Configuración**: Ajustar parámetros del sistema (información de empresa, moneda, idioma, reglas de negocio)
 
 ## Registro de Nuevas Cuentas
 

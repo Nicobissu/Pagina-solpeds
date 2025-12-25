@@ -1,0 +1,353 @@
+import { useState, useEffect } from 'react'
+import { useNavigate } from 'react-router-dom'
+import { useAuth } from '../contexts/AuthContext'
+import { pedidosAPI, notificacionesAPI } from '../services/api'
+import Modal from '../components/Modal'
+import './AdminPanel.css'
+
+function AdminPedidos() {
+  const { user, logout } = useAuth()
+  const navigate = useNavigate()
+  const [filtroEstado, setFiltroEstado] = useState('todos')
+  const [busqueda, setBusqueda] = useState('')
+  const [pedidos, setPedidos] = useState([])
+  const [loading, setLoading] = useState(true)
+  const [itemSeleccionado, setItemSeleccionado] = useState(null)
+  const [showModal, setShowModal] = useState(false)
+  const [comentario, setComentario] = useState('')
+
+  useEffect(() => {
+    cargarPedidos()
+  }, [])
+
+  const cargarPedidos = async () => {
+    try {
+      setLoading(true)
+      const data = await pedidosAPI.getAll(user.id, true)
+      setPedidos(data)
+    } catch (error) {
+      console.error('Error al cargar pedidos:', error)
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  const pedidosFiltrados = pedidos.filter(pedido => {
+    let pasa = true
+
+    if (filtroEstado !== 'todos') {
+      if (filtroEstado === 'registrado') pasa = pedido.estado === 'Registrado'
+      else if (filtroEstado === 'proceso') pasa = pedido.estado === 'En Proceso'
+      else if (filtroEstado === 'revisado') pasa = pedido.estado === 'Revisado'
+      else if (filtroEstado === 'completado') pasa = pedido.estado === 'Completado'
+      else if (filtroEstado === 'cerrado') pasa = pedido.estado === 'Cerrado'
+      else if (filtroEstado === 'urgentes') pasa = pedido.urgente
+      else if (filtroEstado === 'incompletos') pasa = pedido.incompleto
+    }
+
+    if (busqueda) {
+      const searchLower = busqueda.toLowerCase()
+      pasa = pasa && (
+        pedido.obra?.toLowerCase().includes(searchLower) ||
+        pedido.cliente?.toLowerCase().includes(searchLower) ||
+        pedido.descripcion?.toLowerCase().includes(searchLower) ||
+        pedido.id?.toString().includes(searchLower) ||
+        pedido.solicitante?.nombre.toLowerCase().includes(searchLower)
+      )
+    }
+
+    return pasa
+  })
+
+  const contadores = {
+    todos: pedidos.length,
+    registrado: pedidos.filter(p => p.estado === 'Registrado').length,
+    proceso: pedidos.filter(p => p.estado === 'En Proceso').length,
+    revisado: pedidos.filter(p => p.estado === 'Revisado').length,
+    completado: pedidos.filter(p => p.estado === 'Completado').length,
+    cerrado: pedidos.filter(p => p.estado === 'Cerrado').length,
+    urgentes: pedidos.filter(p => p.urgente).length,
+    incompletos: pedidos.filter(p => p.incompleto).length
+  }
+
+  const handleItemClick = (pedido) => {
+    setItemSeleccionado(pedido)
+    setShowModal(true)
+    setComentario('')
+  }
+
+  const handleCambiarEstado = async (nuevoEstado) => {
+    if (!itemSeleccionado) return
+
+    try {
+      await pedidosAPI.update(itemSeleccionado.id, { estado: nuevoEstado })
+      await notificacionesAPI.create({
+        usuario_id: itemSeleccionado.solicitante.id,
+        tipo: 'info',
+        titulo: `Estado de pedido actualizado`,
+        mensaje: `Tu pedido #${itemSeleccionado.id} cambió a estado: ${nuevoEstado}`,
+        icono: '📝'
+      })
+      await cargarPedidos()
+      setShowModal(false)
+      alert('Estado actualizado')
+    } catch (error) {
+      console.error('Error:', error)
+      alert('Error al cambiar el estado')
+    }
+  }
+
+  const handleEnviarComentario = async () => {
+    if (!itemSeleccionado || !comentario.trim()) return
+
+    try {
+      await pedidosAPI.addComentario(itemSeleccionado.id, comentario)
+      await notificacionesAPI.create({
+        usuario_id: itemSeleccionado.solicitante.id,
+        tipo: 'warning',
+        titulo: `Comentario en Pedido #${itemSeleccionado.id}`,
+        mensaje: comentario,
+        icono: '💬'
+      })
+      await cargarPedidos()
+      setComentario('')
+      alert('Comentario enviado')
+    } catch (error) {
+      console.error('Error:', error)
+      alert('Error al enviar el comentario')
+    }
+  }
+
+  const handleMarcarIncompleto = async () => {
+    if (!itemSeleccionado) return
+
+    try {
+      await pedidosAPI.update(itemSeleccionado.id, { incompleto: 1 })
+      await notificacionesAPI.create({
+        usuario_id: itemSeleccionado.solicitante.id,
+        tipo: 'warning',
+        titulo: `Pedido marcado como incompleto`,
+        mensaje: `Tu pedido #${itemSeleccionado.id} ha sido marcado como incompleto. Por favor, revisa la información.`,
+        icono: '⚠️'
+      })
+      await cargarPedidos()
+      setShowModal(false)
+      alert('Marcado como incompleto')
+    } catch (error) {
+      console.error('Error:', error)
+      alert('Error al marcar como incompleto')
+    }
+  }
+
+  if (loading) return <div className="admin-panel"><p>Cargando...</p></div>
+
+  return (
+    <div className="admin-panel">
+      <aside className="admin-sidebar">
+        <div className="admin-sidebar-header">
+          <div className="admin-logo">⚙️</div>
+          <div className="admin-title">
+            <h2>AdminPanel</h2>
+            <p>Gestión v2.0</p>
+          </div>
+        </div>
+
+        <nav className="admin-nav">
+          <button className="admin-nav-item" onClick={() => navigate('/admin')}>
+            <span className="nav-icon">📥</span>
+            <span>Bandeja de Entrada</span>
+          </button>
+          <button className="admin-nav-item active">
+            <span className="nav-icon">📦</span>
+            <span>Pedidos</span>
+          </button>
+          <button className="admin-nav-item" onClick={() => navigate('/admin/compras')}>
+            <span className="nav-icon">🧾</span>
+            <span>Compras</span>
+          </button>
+          <button className="admin-nav-item" onClick={() => navigate('/admin/usuarios')}>
+            <span className="nav-icon">👥</span>
+            <span>Usuarios</span>
+          </button>
+          <button className="admin-nav-item" onClick={() => navigate('/admin/reportes')}>
+            <span className="nav-icon">📊</span>
+            <span>Reportes</span>
+          </button>
+          <button className="admin-nav-item" onClick={() => navigate('/admin/configuracion')}>
+            <span className="nav-icon">⚙️</span>
+            <span>Configuración</span>
+          </button>
+        </nav>
+
+        <div className="admin-sidebar-footer">
+          <div className="admin-user">
+            <div className="admin-user-avatar">👤</div>
+            <div className="admin-user-info">
+              <p className="admin-user-name">{user.name}</p>
+              <p className="admin-user-role">Administrador</p>
+            </div>
+          </div>
+          <button className="admin-logout-btn" onClick={() => { logout(); navigate('/login'); }}>
+            <span>🚪</span>
+          </button>
+        </div>
+      </aside>
+
+      <main className="admin-main">
+        <div className="admin-breadcrumb">
+          <span>Inicio</span>
+          <span>›</span>
+          <span>Pedidos</span>
+        </div>
+
+        <div className="admin-header">
+          <div>
+            <h1>Gestión de Pedidos</h1>
+            <p>Administra todos los pedidos del sistema</p>
+          </div>
+          <button className="btn-nueva-solicitud" onClick={() => navigate('/')}>+ Nuevo Pedido</button>
+        </div>
+
+        <div className="admin-tabs">
+          <button className={`admin-tab ${filtroEstado === 'todos' ? 'active' : ''}`} onClick={() => setFiltroEstado('todos')}>
+            Todos <span className="tab-count">{contadores.todos}</span>
+          </button>
+          <button className={`admin-tab ${filtroEstado === 'registrado' ? 'active' : ''}`} onClick={() => setFiltroEstado('registrado')}>
+            Registrado <span className="tab-count">{contadores.registrado}</span>
+          </button>
+          <button className={`admin-tab ${filtroEstado === 'proceso' ? 'active' : ''}`} onClick={() => setFiltroEstado('proceso')}>
+            En Proceso <span className="tab-count">{contadores.proceso}</span>
+          </button>
+          <button className={`admin-tab ${filtroEstado === 'revisado' ? 'active' : ''}`} onClick={() => setFiltroEstado('revisado')}>
+            Revisado <span className="tab-count">{contadores.revisado}</span>
+          </button>
+          <button className={`admin-tab ${filtroEstado === 'completado' ? 'active' : ''}`} onClick={() => setFiltroEstado('completado')}>
+            Completado <span className="tab-count">{contadores.completado}</span>
+          </button>
+          <button className={`admin-tab ${filtroEstado === 'urgentes' ? 'active' : ''}`} onClick={() => setFiltroEstado('urgentes')}>
+            Urgentes <span className="tab-count">{contadores.urgentes}</span>
+          </button>
+        </div>
+
+        <div className="admin-filters">
+          <div className="search-box">
+            <span className="search-icon">🔍</span>
+            <input
+              type="text"
+              placeholder="Buscar por Obra, Solicitante o ID..."
+              value={busqueda}
+              onChange={(e) => setBusqueda(e.target.value)}
+            />
+          </div>
+          <button className="filter-btn" onClick={cargarPedidos}>🔄 Actualizar</button>
+        </div>
+
+        <div className="admin-table-container">
+          <table className="admin-table">
+            <thead>
+              <tr>
+                <th>ID</th>
+                <th>FECHA</th>
+                <th>OBRA</th>
+                <th>CLIENTE</th>
+                <th>DESCRIPCIÓN</th>
+                <th>MONTO</th>
+                <th>SOLICITANTE</th>
+                <th>ESTADO</th>
+                <th>ACCIONES</th>
+              </tr>
+            </thead>
+            <tbody>
+              {pedidosFiltrados.map(pedido => (
+                <tr key={pedido.id}>
+                  <td>#{pedido.id}</td>
+                  <td>{new Date(pedido.fecha).toLocaleDateString('es-ES', { day: '2-digit', month: 'short' })}</td>
+                  <td><strong>{pedido.obra}</strong></td>
+                  <td>{pedido.cliente}</td>
+                  <td className="descripcion-cell">{pedido.descripcion?.substring(0, 50)}...</td>
+                  <td>{pedido.monto ? `$${pedido.monto.toFixed(2)}` : '---'}</td>
+                  <td>
+                    <div className="solicitante-cell">
+                      <span className="solicitante-avatar">{pedido.solicitante.avatar}</span>
+                      <span>{pedido.solicitante.nombre}</span>
+                    </div>
+                  </td>
+                  <td>
+                    <div className="estado-cell">
+                      <span className="estado-badge">{pedido.estado}</span>
+                      {pedido.urgente && <span className="urgente-icon">🔴</span>}
+                      {pedido.incompleto && <span className="incompleto-icon">⚠️</span>}
+                    </div>
+                  </td>
+                  <td>
+                    <button className="btn-action" onClick={() => handleItemClick(pedido)}>⚙️</button>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+
+          {pedidosFiltrados.length === 0 && (
+            <div className="empty-table"><p>No se encontraron pedidos.</p></div>
+          )}
+
+          <div className="table-footer">
+            <p>Mostrando {pedidosFiltrados.length} pedidos</p>
+          </div>
+        </div>
+      </main>
+
+      {showModal && itemSeleccionado && (
+        <Modal title={`Gestionar Pedido #${itemSeleccionado.id}`} onClose={() => setShowModal(false)}>
+          <div className="modal-form">
+            <div className="info-section">
+              <h3>Información</h3>
+              <p><strong>Solicitante:</strong> {itemSeleccionado.solicitante.nombre}</p>
+              <p><strong>Obra:</strong> {itemSeleccionado.obra}</p>
+              <p><strong>Cliente:</strong> {itemSeleccionado.cliente}</p>
+              <p><strong>Descripción:</strong> {itemSeleccionado.descripcion}</p>
+              {itemSeleccionado.monto && <p><strong>Monto:</strong> ${itemSeleccionado.monto.toFixed(2)}</p>}
+              <p><strong>Estado actual:</strong> {itemSeleccionado.estado}</p>
+            </div>
+
+            <div className="form-group">
+              <h3>Cambiar Estado</h3>
+              <div className="estado-buttons">
+                <button onClick={() => handleCambiarEstado('Registrado')} className="btn-estado">Registrado</button>
+                <button onClick={() => handleCambiarEstado('En Proceso')} className="btn-estado">En Proceso</button>
+                <button onClick={() => handleCambiarEstado('Revisado')} className="btn-estado">Revisado</button>
+                <button onClick={() => handleCambiarEstado('Completado')} className="btn-estado">Completado</button>
+                <button onClick={() => handleCambiarEstado('Cerrado')} className="btn-estado">Cerrado</button>
+              </div>
+            </div>
+
+            <div className="form-group">
+              <button onClick={handleMarcarIncompleto} className="btn-warning" style={{ width: '100%' }}>
+                ⚠️ Marcar como Incompleto
+              </button>
+            </div>
+
+            <div className="form-group">
+              <h3>Agregar Comentario</h3>
+              <textarea
+                rows="4"
+                placeholder="Escribe un comentario..."
+                value={comentario}
+                onChange={(e) => setComentario(e.target.value)}
+              ></textarea>
+              <button onClick={handleEnviarComentario} className="btn-primary" disabled={!comentario.trim()} style={{ marginTop: '10px' }}>
+                💬 Enviar Comentario
+              </button>
+            </div>
+
+            <div className="modal-actions" style={{ marginTop: '20px' }}>
+              <button className="btn-secondary" onClick={() => setShowModal(false)}>Cerrar</button>
+            </div>
+          </div>
+        </Modal>
+      )}
+    </div>
+  )
+}
+
+export default AdminPedidos

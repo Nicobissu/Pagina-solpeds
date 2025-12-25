@@ -6,6 +6,11 @@ import MisPedidos from './pages/MisPedidos'
 import MisCompras from './pages/MisCompras'
 import Notificaciones from './pages/Notificaciones'
 import AdminPanel from './pages/AdminPanel'
+import AdminPedidos from './pages/AdminPedidos'
+import AdminCompras from './pages/AdminCompras'
+import AdminUsuarios from './pages/AdminUsuarios'
+import AdminReportes from './pages/AdminReportes'
+import AdminConfiguracion from './pages/AdminConfiguracion'
 import './App.css'
 
 function PrivateRoute({ children, adminOnly = false }) {
@@ -33,6 +38,11 @@ function AppRoutes() {
       <Route path="/compras" element={<PrivateRoute><MisCompras /></PrivateRoute>} />
       <Route path="/notificaciones" element={<PrivateRoute><Notificaciones /></PrivateRoute>} />
       <Route path="/admin" element={<PrivateRoute adminOnly><AdminPanel /></PrivateRoute>} />
+      <Route path="/admin/pedidos" element={<PrivateRoute adminOnly><AdminPedidos /></PrivateRoute>} />
+      <Route path="/admin/compras" element={<PrivateRoute adminOnly><AdminCompras /></PrivateRoute>} />
+      <Route path="/admin/usuarios" element={<PrivateRoute adminOnly><AdminUsuarios /></PrivateRoute>} />
+      <Route path="/admin/reportes" element={<PrivateRoute adminOnly><AdminReportes /></PrivateRoute>} />
+      <Route path="/admin/configuracion" element={<PrivateRoute adminOnly><AdminConfiguracion /></PrivateRoute>} />
     </Routes>
   )
 }

@@ -121,11 +121,30 @@ function AdminPanel() {
     try {
       if (itemSeleccionado.tipo === 'Pedido') {
         await pedidosAPI.update(itemSeleccionado.id, { estado: nuevoEstado })
+
+        // Crear notificación para el usuario
+        await notificacionesAPI.create({
+          usuario_id: itemSeleccionado.solicitante.id,
+          tipo: 'info',
+          titulo: `Estado de pedido actualizado`,
+          mensaje: `Tu pedido #${itemSeleccionado.id} cambió a estado: ${nuevoEstado}`,
+          icono: '📝'
+        })
       } else {
         await comprasAPI.update(itemSeleccionado.id, { estado: nuevoEstado })
+
+        // Crear notificación para el usuario
+        await notificacionesAPI.create({
+          usuario_id: itemSeleccionado.solicitante.id,
+          tipo: 'info',
+          titulo: `Estado de compra actualizado`,
+          mensaje: `Tu compra #${itemSeleccionado.id} cambió a estado: ${nuevoEstado}`,
+          icono: '🧾'
+        })
       }
       await cargarDatos()
       setShowModal(false)
+      alert('Estado actualizado y notificación enviada')
     } catch (error) {
       console.error('Error al cambiar estado:', error)
       alert('Error al cambiar el estado')
