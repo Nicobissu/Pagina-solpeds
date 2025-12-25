@@ -77,31 +77,46 @@ function AdminPedidos() {
   }
 
   const handleCambiarEstado = async (nuevoEstado) => {
-    if (!itemSeleccionado) return
+    if (!itemSeleccionado) {
+      alert('No hay pedido seleccionado')
+      return
+    }
 
     try {
-      await pedidosAPI.update(itemSeleccionado.id, { estado: nuevoEstado })
-      await notificacionesAPI.create({
+      console.log('Actualizando pedido:', itemSeleccionado.id, 'a estado:', nuevoEstado)
+      const updateResult = await pedidosAPI.update(itemSeleccionado.id, { estado: nuevoEstado })
+      console.log('Resultado update:', updateResult)
+
+      console.log('Creando notificación para usuario:', itemSeleccionado.solicitante.id)
+      const notifResult = await notificacionesAPI.create({
         usuario_id: itemSeleccionado.solicitante.id,
         tipo: 'info',
         titulo: `Estado de pedido actualizado`,
         mensaje: `Tu pedido #${itemSeleccionado.id} cambió a estado: ${nuevoEstado}`,
         icono: '📝'
       })
+      console.log('Resultado notificación:', notifResult)
+
       await cargarPedidos()
       setShowModal(false)
-      alert('Estado actualizado')
+      alert('Estado actualizado exitosamente')
     } catch (error) {
-      console.error('Error:', error)
-      alert('Error al cambiar el estado')
+      console.error('Error completo:', error)
+      alert(`Error al cambiar el estado: ${error.message}`)
     }
   }
 
   const handleEnviarComentario = async () => {
-    if (!itemSeleccionado || !comentario.trim()) return
+    if (!itemSeleccionado || !comentario.trim()) {
+      alert('Debes escribir un comentario')
+      return
+    }
 
     try {
+      console.log('Agregando comentario al pedido:', itemSeleccionado.id)
       await pedidosAPI.addComentario(itemSeleccionado.id, comentario)
+
+      console.log('Creando notificación de comentario')
       await notificacionesAPI.create({
         usuario_id: itemSeleccionado.solicitante.id,
         tipo: 'warning',
@@ -109,20 +124,27 @@ function AdminPedidos() {
         mensaje: comentario,
         icono: '💬'
       })
+
       await cargarPedidos()
       setComentario('')
-      alert('Comentario enviado')
+      alert('Comentario enviado exitosamente')
     } catch (error) {
-      console.error('Error:', error)
-      alert('Error al enviar el comentario')
+      console.error('Error completo:', error)
+      alert(`Error al enviar el comentario: ${error.message}`)
     }
   }
 
   const handleMarcarIncompleto = async () => {
-    if (!itemSeleccionado) return
+    if (!itemSeleccionado) {
+      alert('No hay pedido seleccionado')
+      return
+    }
 
     try {
+      console.log('Marcando pedido como incompleto:', itemSeleccionado.id)
       await pedidosAPI.update(itemSeleccionado.id, { incompleto: 1 })
+
+      console.log('Creando notificación de incompleto')
       await notificacionesAPI.create({
         usuario_id: itemSeleccionado.solicitante.id,
         tipo: 'warning',
@@ -130,12 +152,13 @@ function AdminPedidos() {
         mensaje: `Tu pedido #${itemSeleccionado.id} ha sido marcado como incompleto. Por favor, revisa la información.`,
         icono: '⚠️'
       })
+
       await cargarPedidos()
       setShowModal(false)
-      alert('Marcado como incompleto')
+      alert('Marcado como incompleto exitosamente')
     } catch (error) {
-      console.error('Error:', error)
-      alert('Error al marcar como incompleto')
+      console.error('Error completo:', error)
+      alert(`Error al marcar como incompleto: ${error.message}`)
     }
   }
 
