@@ -223,23 +223,23 @@ function AdminPanel() {
             <span className="nav-icon">📥</span>
             <span>Bandeja de Entrada</span>
           </button>
-          <button className="admin-nav-item">
+          <button className="admin-nav-item" onClick={() => navigate('/admin/pedidos')}>
             <span className="nav-icon">📦</span>
             <span>Pedidos</span>
           </button>
-          <button className="admin-nav-item">
+          <button className="admin-nav-item" onClick={() => navigate('/admin/compras')}>
             <span className="nav-icon">🧾</span>
             <span>Compras</span>
           </button>
-          <button className="admin-nav-item">
+          <button className="admin-nav-item" onClick={() => navigate('/admin/usuarios')}>
             <span className="nav-icon">👥</span>
             <span>Usuarios</span>
           </button>
-          <button className="admin-nav-item">
+          <button className="admin-nav-item" onClick={() => navigate('/admin/reportes')}>
             <span className="nav-icon">📊</span>
             <span>Reportes</span>
           </button>
-          <button className="admin-nav-item">
+          <button className="admin-nav-item" onClick={() => navigate('/admin/configuracion')}>
             <span className="nav-icon">⚙️</span>
             <span>Configuración</span>
           </button>
