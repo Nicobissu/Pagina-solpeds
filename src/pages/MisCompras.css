@@ -280,3 +280,165 @@
     align-items: stretch;
   }
 }
+
+/* Sub-tabs para Activas/Canceladas */
+.sub-tabs {
+  display: flex;
+  gap: 0.5rem;
+  margin-bottom: 1.5rem;
+  border-bottom: 2px solid var(--border-color, #e0e0e0);
+  padding-bottom: 0.5rem;
+}
+
+.sub-tab {
+  padding: 0.75rem 1.5rem;
+  background: none;
+  border: none;
+  border-bottom: 3px solid transparent;
+  color: var(--text-secondary, #666);
+  font-size: 1rem;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.sub-tab:hover {
+  color: var(--text-primary, #000);
+  border-bottom-color: var(--primary-color, #4A90E2);
+}
+
+.sub-tab.active {
+  color: var(--primary-color, #4A90E2);
+  border-bottom-color: var(--primary-color, #4A90E2);
+}
+
+/* Tarjeta cancelada */
+.compra-card.cancelada {
+  opacity: 0.85;
+  border-top-color: #dc3545 !important;
+}
+
+/* Badge rojo para cancelada */
+.status-badge.cancelada {
+  background-color: #dc3545;
+  color: white;
+}
+
+/* Acciones de la compra */
+.compra-actions {
+  display: flex;
+  gap: 0.5rem;
+  align-items: center;
+}
+
+/* Botón cancelar en la tarjeta */
+.btn-cancelar-compra {
+  background: #dc3545;
+  color: white;
+  border: none;
+  width: 36px;
+  height: 36px;
+  border-radius: 8px;
+  cursor: pointer;
+  font-size: 1.2rem;
+  transition: all 0.2s;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.btn-cancelar-compra:hover {
+  background: #c82333;
+  transform: scale(1.1);
+}
+
+/* Info de cancelación */
+.cancelacion-info {
+  margin-top: 1rem;
+  padding: 1rem;
+  background: #fff3cd;
+  border-left: 4px solid #ffc107;
+  border-radius: 4px;
+}
+
+.cancelacion-info p {
+  margin: 0 0 0.5rem 0;
+  font-size: 0.9rem;
+}
+
+.btn-ver-motivo {
+  background: #007bff;
+  color: white;
+  border: none;
+  padding: 0.4rem 0.8rem;
+  border-radius: 4px;
+  cursor: pointer;
+  font-size: 0.85rem;
+  transition: background 0.2s;
+}
+
+.btn-ver-motivo:hover {
+  background: #0056b3;
+}
+
+/* Modal de cancelación */
+.compra-cancelar-info {
+  background: #f8f9fa;
+  padding: 1rem;
+  border-radius: 6px;
+  margin-bottom: 1rem;
+}
+
+.compra-cancelar-info p {
+  margin: 0.5rem 0;
+}
+
+.btn-danger {
+  background: #dc3545;
+  color: white;
+  border: none;
+  padding: 0.75rem 1.5rem;
+  border-radius: 6px;
+  cursor: pointer;
+  font-size: 1rem;
+  font-weight: 500;
+  transition: background 0.2s;
+}
+
+.btn-danger:hover {
+  background: #c82333;
+}
+
+/* Detalle de cancelación */
+.detalle-cancelacion {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+}
+
+.info-row {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.info-row strong {
+  color: var(--text-secondary, #666);
+  font-size: 0.9rem;
+}
+
+.info-row span {
+  font-size: 1rem;
+}
+
+.info-row.motivo {
+  background: #f8f9fa;
+  padding: 1rem;
+  border-radius: 6px;
+  border-left: 4px solid #dc3545;
+}
+
+.info-row.motivo p {
+  margin: 0.5rem 0 0 0;
+  line-height: 1.6;
+}

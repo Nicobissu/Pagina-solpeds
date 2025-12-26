@@ -130,9 +130,14 @@ export async function initDatabase() {
       fotos INTEGER DEFAULT 0,
       urgente BOOLEAN DEFAULT 0,
       incompleto BOOLEAN DEFAULT 0,
+      cancelado BOOLEAN DEFAULT 0,
+      motivo_cancelacion TEXT,
+      cancelado_por_id INTEGER,
+      fecha_cancelacion DATETIME,
       created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
       updated_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-      FOREIGN KEY (solicitante_id) REFERENCES usuarios(id)
+      FOREIGN KEY (solicitante_id) REFERENCES usuarios(id),
+      FOREIGN KEY (cancelado_por_id) REFERENCES usuarios(id)
     )
   `);
 
@@ -160,9 +165,14 @@ export async function initDatabase() {
       estado TEXT NOT NULL DEFAULT 'Pendiente',
       solicitante_id INTEGER NOT NULL,
       urgente BOOLEAN DEFAULT 0,
+      cancelado BOOLEAN DEFAULT 0,
+      motivo_cancelacion TEXT,
+      cancelado_por_id INTEGER,
+      fecha_cancelacion DATETIME,
       created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
       updated_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-      FOREIGN KEY (solicitante_id) REFERENCES usuarios(id)
+      FOREIGN KEY (solicitante_id) REFERENCES usuarios(id),
+      FOREIGN KEY (cancelado_por_id) REFERENCES usuarios(id)
     )
   `);
 
@@ -180,6 +190,37 @@ export async function initDatabase() {
       FOREIGN KEY (usuario_id) REFERENCES usuarios(id)
     )
   `);
+
+  // Migraciones: agregar columnas de cancelación si no existen
+  try {
+    // Verificar si las columnas de cancelación existen en pedidos
+    const pedidosInfo = db.exec("PRAGMA table_info(pedidos)");
+    const pedidosColumns = pedidosInfo.length > 0 ? pedidosInfo[0].values.map(row => row[1]) : [];
+
+    if (!pedidosColumns.includes('cancelado')) {
+      console.log('🔄 Migrando tabla pedidos: agregando columnas de cancelación...');
+      db.exec('ALTER TABLE pedidos ADD COLUMN cancelado BOOLEAN DEFAULT 0');
+      db.exec('ALTER TABLE pedidos ADD COLUMN motivo_cancelacion TEXT');
+      db.exec('ALTER TABLE pedidos ADD COLUMN cancelado_por_id INTEGER');
+      db.exec('ALTER TABLE pedidos ADD COLUMN fecha_cancelacion DATETIME');
+      console.log('✅ Columnas de cancelación agregadas a pedidos');
+    }
+
+    // Verificar si las columnas de cancelación existen en compras
+    const comprasInfo = db.exec("PRAGMA table_info(compras)");
+    const comprasColumns = comprasInfo.length > 0 ? comprasInfo[0].values.map(row => row[1]) : [];
+
+    if (!comprasColumns.includes('cancelado')) {
+      console.log('🔄 Migrando tabla compras: agregando columnas de cancelación...');
+      db.exec('ALTER TABLE compras ADD COLUMN cancelado BOOLEAN DEFAULT 0');
+      db.exec('ALTER TABLE compras ADD COLUMN motivo_cancelacion TEXT');
+      db.exec('ALTER TABLE compras ADD COLUMN cancelado_por_id INTEGER');
+      db.exec('ALTER TABLE compras ADD COLUMN fecha_cancelacion DATETIME');
+      console.log('✅ Columnas de cancelación agregadas a compras');
+    }
+  } catch (migrationError) {
+    console.error('⚠️  Error durante la migración:', migrationError);
+  }
 
   console.log('✅ Base de datos inicializada correctamente');
 

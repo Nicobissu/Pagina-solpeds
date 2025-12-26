@@ -2,23 +2,36 @@ import { useState, useEffect } from 'react'
 import { useAuth } from '../contexts/AuthContext'
 import { pedidosAPI } from '../services/api'
 import Layout from '../components/Layout'
+import Modal from '../components/Modal'
 import './MisPedidos.css'
 
 function MisPedidos() {
   const { user } = useAuth()
+  const [vista, setVista] = useState('activos') // 'activos' o 'cancelados'
   const [filtro, setFiltro] = useState('todos')
   const [misPedidos, setMisPedidos] = useState([])
+  const [pedidosCancelados, setPedidosCancelados] = useState([])
   const [loading, setLoading] = useState(true)
+  const [modalCancelar, setModalCancelar] = useState(false)
+  const [pedidoACancelar, setPedidoACancelar] = useState(null)
+  const [motivoCancelacion, setMotivoCancelacion] = useState('')
+  const [pedidoDetalle, setPedidoDetalle] = useState(null)
+  const [modalDetalle, setModalDetalle] = useState(false)
 
   useEffect(() => {
-    cargarPedidos()
-  }, [user])
+    cargarDatos()
+  }, [user, vista])
 
-  const cargarPedidos = async () => {
+  const cargarDatos = async () => {
     try {
       setLoading(true)
-      const data = await pedidosAPI.getAll(user.id, user.role === 'admin')
-      setMisPedidos(data)
+      if (vista === 'activos') {
+        const data = await pedidosAPI.getAll(user.id, user.role === 'admin')
+        setMisPedidos(data)
+      } else {
+        const data = await pedidosAPI.getCancelados(user.id, user.role === 'admin')
+        setPedidosCancelados(data)
+      }
     } catch (error) {
       console.error('Error al cargar pedidos:', error)
     } finally {
@@ -26,11 +39,43 @@ function MisPedidos() {
     }
   }
 
-  const pedidosFiltrados = misPedidos.filter(pedido => {
-    if (filtro === 'urgentes') return pedido.urgente
-    if (filtro === 'incompletos') return pedido.incompleto
-    return true
-  })
+  const abrirModalCancelar = (pedido) => {
+    setPedidoACancelar(pedido)
+    setMotivoCancelacion('')
+    setModalCancelar(true)
+  }
+
+  const confirmarCancelacion = async () => {
+    if (!motivoCancelacion.trim()) {
+      alert('Debes proporcionar un motivo de cancelación')
+      return
+    }
+
+    try {
+      await pedidosAPI.cancelar(pedidoACancelar.id, motivoCancelacion)
+      setModalCancelar(false)
+      setPedidoACancelar(null)
+      setMotivoCancelacion('')
+      cargarDatos()
+      alert('Pedido cancelado exitosamente')
+    } catch (error) {
+      console.error('Error al cancelar pedido:', error)
+      alert('Error al cancelar el pedido: ' + error.message)
+    }
+  }
+
+  const verDetalleCancelacion = (pedido) => {
+    setPedidoDetalle(pedido)
+    setModalDetalle(true)
+  }
+
+  const pedidosFiltrados = vista === 'activos'
+    ? misPedidos.filter(pedido => {
+        if (filtro === 'urgentes') return pedido.urgente
+        if (filtro === 'incompletos') return pedido.incompleto
+        return true
+      })
+    : pedidosCancelados
 
   const getEstadoIcon = (estado) => {
     const map = {
@@ -68,6 +113,16 @@ function MisPedidos() {
     return `Hace ${dias} día${dias > 1 ? 's' : ''}`
   }
 
+  const formatearFecha = (fecha) => {
+    return new Date(fecha).toLocaleString('es-ES', {
+      day: '2-digit',
+      month: 'short',
+      year: 'numeric',
+      hour: '2-digit',
+      minute: '2-digit'
+    })
+  }
+
   if (loading) {
     return (
       <Layout>
@@ -94,38 +149,58 @@ function MisPedidos() {
           <button className="tab" onClick={() => window.location.href = '/compras'}>Compras</button>
         </div>
 
-        <div className="filters">
+        {/* Pestañas Activos/Cancelados */}
+        <div className="sub-tabs">
           <button
-            className={`filter-btn ${filtro === 'todos' ? 'active' : ''}`}
-            onClick={() => setFiltro('todos')}
+            className={`sub-tab ${vista === 'activos' ? 'active' : ''}`}
+            onClick={() => setVista('activos')}
           >
-            Todos
+            📋 Activos
           </button>
           <button
-            className={`filter-btn urgente ${filtro === 'urgentes' ? 'active' : ''}`}
-            onClick={() => setFiltro('urgentes')}
+            className={`sub-tab ${vista === 'cancelados' ? 'active' : ''}`}
+            onClick={() => setVista('cancelados')}
           >
-            ⚡ Solo Urgentes
-          </button>
-          <button
-            className={`filter-btn incompleto ${filtro === 'incompletos' ? 'active' : ''}`}
-            onClick={() => setFiltro('incompletos')}
-          >
-            ⚠️ Incompletos
+            ❌ Cancelados
           </button>
         </div>
 
+        {vista === 'activos' && (
+          <div className="filters">
+            <button
+              className={`filter-btn ${filtro === 'todos' ? 'active' : ''}`}
+              onClick={() => setFiltro('todos')}
+            >
+              Todos
+            </button>
+            <button
+              className={`filter-btn urgente ${filtro === 'urgentes' ? 'active' : ''}`}
+              onClick={() => setFiltro('urgentes')}
+            >
+              ⚡ Solo Urgentes
+            </button>
+            <button
+              className={`filter-btn incompleto ${filtro === 'incompletos' ? 'active' : ''}`}
+              onClick={() => setFiltro('incompletos')}
+            >
+              ⚠️ Incompletos
+            </button>
+          </div>
+        )}
+
         <div className="pedidos-list">
           {pedidosFiltrados.map(pedido => (
-            <div key={pedido.id} className={`pedido-card ${pedido.urgente ? 'urgente' : ''}`}>
+            <div key={pedido.id} className={`pedido-card ${pedido.urgente ? 'urgente' : ''} ${pedido.cancelado ? 'cancelado' : ''}`}>
               <div className="pedido-header">
-                <div className="pedido-icon">{getEstadoIcon(pedido.estado)}</div>
+                <div className="pedido-icon">{pedido.cancelado ? '❌' : getEstadoIcon(pedido.estado)}</div>
                 <div className="pedido-info">
                   <div className="pedido-meta">
-                    <span className={`badge ${getEstadoBadgeClass(pedido.estado)}`}>
-                      {pedido.estado}
+                    <span className={`badge ${pedido.cancelado ? 'badge-red' : getEstadoBadgeClass(pedido.estado)}`}>
+                      {pedido.cancelado ? 'CANCELADO' : pedido.estado}
                     </span>
-                    <span className="pedido-time">{formatearTiempo(pedido.fecha)}</span>
+                    <span className="pedido-time">
+                      {pedido.cancelado ? formatearFecha(pedido.fecha_cancelacion) : formatearTiempo(pedido.fecha)}
+                    </span>
                   </div>
                   <h3 className="pedido-title">{pedido.obra} - {pedido.cliente}</h3>
                   {(() => {
@@ -145,7 +220,6 @@ function MisPedidos() {
                         </div>
                       )
                     } catch (e) {
-                      // Si no es JSON, mostrar como texto (compatibilidad con pedidos antiguos)
                       return <p className="pedido-description">{pedido.descripcion}</p>
                     }
                   })()}
@@ -165,6 +239,21 @@ function MisPedidos() {
                     )}
                   </div>
 
+                  {pedido.cancelado && pedido.cancelado_por && (
+                    <div className="cancelacion-info">
+                      <p>
+                        <strong>Cancelado por:</strong> {pedido.cancelado_por.avatar} {pedido.cancelado_por.nombre}
+                        {pedido.cancelado_por.rol === 'admin' && ' (Administrador)'}
+                      </p>
+                      <button
+                        className="btn-ver-motivo"
+                        onClick={() => verDetalleCancelacion(pedido)}
+                      >
+                        Ver motivo
+                      </button>
+                    </div>
+                  )}
+
                   {pedido.comentarios && pedido.comentarios.length > 0 && (
                     <div className="pedido-comments">
                       {pedido.comentarios.map((comentario, idx) => (
@@ -179,17 +268,100 @@ function MisPedidos() {
                     </div>
                   )}
                 </div>
-                <button className="btn-arrow">→</button>
+                {!pedido.cancelado && (
+                  <div className="pedido-actions">
+                    <button
+                      className="btn-cancelar"
+                      onClick={() => abrirModalCancelar(pedido)}
+                      title="Cancelar pedido"
+                    >
+                      ❌
+                    </button>
+                  </div>
+                )}
               </div>
             </div>
           ))}
 
           {pedidosFiltrados.length === 0 && (
             <div className="empty-state">
-              <p>No se encontraron pedidos con los filtros seleccionados.</p>
+              <p>
+                {vista === 'cancelados'
+                  ? 'No hay pedidos cancelados.'
+                  : 'No se encontraron pedidos con los filtros seleccionados.'}
+              </p>
             </div>
           )}
         </div>
+
+        {/* Modal para cancelar */}
+        {modalCancelar && (
+          <Modal title="Cancelar Pedido" onClose={() => setModalCancelar(false)}>
+            <div className="modal-form">
+              <p style={{ marginBottom: '15px' }}>
+                ¿Estás seguro de que deseas cancelar este pedido?
+              </p>
+              <div className="pedido-cancelar-info">
+                <p><strong>Obra:</strong> {pedidoACancelar.obra}</p>
+                <p><strong>Cliente:</strong> {pedidoACancelar.cliente}</p>
+              </div>
+              <div className="form-group">
+                <label htmlFor="motivo">Motivo de cancelación *</label>
+                <textarea
+                  id="motivo"
+                  rows="4"
+                  placeholder="Explica por qué se cancela este pedido..."
+                  value={motivoCancelacion}
+                  onChange={(e) => setMotivoCancelacion(e.target.value)}
+                  required
+                />
+              </div>
+              <div className="modal-actions">
+                <button
+                  type="button"
+                  className="btn-secondary"
+                  onClick={() => setModalCancelar(false)}
+                >
+                  Volver
+                </button>
+                <button
+                  type="button"
+                  className="btn-danger"
+                  onClick={confirmarCancelacion}
+                >
+                  Confirmar Cancelación
+                </button>
+              </div>
+            </div>
+          </Modal>
+        )}
+
+        {/* Modal de detalle de cancelación */}
+        {modalDetalle && pedidoDetalle && (
+          <Modal title="Detalle de Cancelación" onClose={() => setModalDetalle(false)}>
+            <div className="detalle-cancelacion">
+              <div className="info-row">
+                <strong>Pedido:</strong>
+                <span>#{pedidoDetalle.id} - {pedidoDetalle.obra}</span>
+              </div>
+              <div className="info-row">
+                <strong>Cancelado por:</strong>
+                <span>
+                  {pedidoDetalle.cancelado_por.avatar} {pedidoDetalle.cancelado_por.nombre}
+                  {pedidoDetalle.cancelado_por.rol === 'admin' && ' (Administrador)'}
+                </span>
+              </div>
+              <div className="info-row">
+                <strong>Fecha de cancelación:</strong>
+                <span>{formatearFecha(pedidoDetalle.fecha_cancelacion)}</span>
+              </div>
+              <div className="info-row motivo">
+                <strong>Motivo:</strong>
+                <p>{pedidoDetalle.motivo_cancelacion}</p>
+              </div>
+            </div>
+          </Modal>
+        )}
       </div>
     </Layout>
   )

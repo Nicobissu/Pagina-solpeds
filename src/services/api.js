@@ -101,6 +101,26 @@ export const pedidosAPI = {
       body: JSON.stringify({ comentario })
     });
     return handleResponse(response);
+  },
+
+  cancelar: async (id, motivo) => {
+    const response = await fetch(`${API_URL}/pedidos/${id}/cancelar`, {
+      method: 'PUT',
+      headers: getAuthHeaders(),
+      body: JSON.stringify({ motivo })
+    });
+    return handleResponse(response);
+  },
+
+  getCancelados: async (userId, isAdmin) => {
+    const params = new URLSearchParams({
+      userId,
+      isAdmin: isAdmin ? 'true' : 'false'
+    });
+    const response = await fetch(`${API_URL}/pedidos/cancelados/lista?${params}`, {
+      headers: getAuthHeaders()
+    });
+    return handleResponse(response);
   }
 };
 
@@ -145,6 +165,26 @@ export const comprasAPI = {
   delete: async (id) => {
     const response = await fetch(`${API_URL}/compras/${id}`, {
       method: 'DELETE',
+      headers: getAuthHeaders()
+    });
+    return handleResponse(response);
+  },
+
+  cancelar: async (id, motivo) => {
+    const response = await fetch(`${API_URL}/compras/${id}/cancelar`, {
+      method: 'PUT',
+      headers: getAuthHeaders(),
+      body: JSON.stringify({ motivo })
+    });
+    return handleResponse(response);
+  },
+
+  getCanceladas: async (userId, isAdmin) => {
+    const params = new URLSearchParams({
+      userId,
+      isAdmin: isAdmin ? 'true' : 'false'
+    });
+    const response = await fetch(`${API_URL}/compras/canceladas/lista?${params}`, {
       headers: getAuthHeaders()
     });
     return handleResponse(response);

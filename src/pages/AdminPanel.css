@@ -598,3 +598,137 @@
   background-color: #fde68a;
   transform: translateY(-1px);
 }
+
+/* Sub-tabs para Activos/Cancelados en Admin */
+.sub-tabs-admin {
+  display: flex;
+  gap: 0.5rem;
+  margin-bottom: 1.5rem;
+  border-bottom: 2px solid var(--border-color, #e0e0e0);
+  padding-bottom: 0.5rem;
+}
+
+.sub-tab-admin {
+  padding: 0.75rem 1.5rem;
+  background: none;
+  border: none;
+  border-bottom: 3px solid transparent;
+  color: var(--text-secondary, #666);
+  font-size: 1rem;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.sub-tab-admin:hover {
+  color: var(--text-primary, #000);
+  border-bottom-color: var(--primary-color, #4A90E2);
+}
+
+.sub-tab-admin.active {
+  color: var(--primary-color, #4A90E2);
+  border-bottom-color: var(--primary-color, #4A90E2);
+}
+
+/* Fila cancelada en tabla */
+.row-cancelado {
+  opacity: 0.75;
+  background-color: #fff5f5;
+}
+
+/* Badge de cancelado */
+.estado-badge.cancelado {
+  background-color: #dc3545;
+  color: white;
+}
+
+/* Celda de acciones */
+.acciones-cell {
+  display: flex;
+  gap: 0.5rem;
+  align-items: center;
+  justify-content: center;
+}
+
+/* Botón cancelar en admin */
+.btn-cancelar-admin {
+  background: #dc3545;
+  color: white;
+  border: none;
+  width: 32px;
+  height: 32px;
+  border-radius: 6px;
+  cursor: pointer;
+  font-size: 1rem;
+  transition: all 0.2s;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.btn-cancelar-admin:hover {
+  background: #c82333;
+  transform: scale(1.1);
+}
+
+/* Estilos para modal de cancelación */
+.pedido-cancelar-info {
+  background: #f8f9fa;
+  padding: 1rem;
+  border-radius: 6px;
+  margin-bottom: 1rem;
+}
+
+.pedido-cancelar-info p {
+  margin: 0.5rem 0;
+}
+
+.btn-danger {
+  background: #dc3545;
+  color: white;
+  border: none;
+  padding: 0.75rem 1.5rem;
+  border-radius: 6px;
+  cursor: pointer;
+  font-size: 1rem;
+  font-weight: 500;
+  transition: background 0.2s;
+}
+
+.btn-danger:hover {
+  background: #c82333;
+}
+
+/* Detalle de cancelación */
+.detalle-cancelacion {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+}
+
+.info-row {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.info-row strong {
+  color: var(--text-secondary, #666);
+  font-size: 0.9rem;
+}
+
+.info-row span {
+  font-size: 1rem;
+}
+
+.info-row.motivo {
+  background: #f8f9fa;
+  padding: 1rem;
+  border-radius: 6px;
+  border-left: 4px solid #dc3545;
+}
+
+.info-row.motivo p {
+  margin: 0.5rem 0 0 0;
+  line-height: 1.6;
+}

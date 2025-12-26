@@ -9,14 +9,20 @@ export function getAllCompras(req, res) {
         c.*,
         u.id as solicitante_id,
         u.nombre as solicitante_nombre,
-        u.avatar as solicitante_avatar
+        u.avatar as solicitante_avatar,
+        uc.nombre as cancelado_por_nombre,
+        uc.avatar as cancelado_por_avatar
       FROM compras c
       LEFT JOIN usuarios u ON c.solicitante_id = u.id
+      LEFT JOIN usuarios uc ON c.cancelado_por_id = uc.id
     `;
 
     // Si no es admin, solo mostrar sus propias compras
+    // Filtramos las canceladas (se verán en otra vista)
     if (!isAdmin || isAdmin === 'false') {
-      query += ` WHERE c.solicitante_id = ?`;
+      query += ` WHERE c.solicitante_id = ? AND c.cancelado = 0`;
+    } else {
+      query += ` WHERE c.cancelado = 0`;
     }
 
     query += ` ORDER BY c.id DESC`;
@@ -195,6 +201,110 @@ export function deleteCompra(req, res) {
     res.json({ success: true, message: 'Compra eliminada exitosamente' });
   } catch (error) {
     console.error('Error al eliminar compra:', error);
+    res.status(500).json({ error: 'Error interno del servidor' });
+  }
+}
+
+export function cancelarCompra(req, res) {
+  try {
+    const { id } = req.params;
+    const { motivo } = req.body;
+    const userId = req.user.id;
+
+    if (!motivo || motivo.trim() === '') {
+      return res.status(400).json({ error: 'El motivo de cancelación es requerido' });
+    }
+
+    // Verificar que la compra existe
+    const compra = db.prepare('SELECT * FROM compras WHERE id = ?').get(id);
+    if (!compra) {
+      return res.status(404).json({ error: 'Compra no encontrada' });
+    }
+
+    // Verificar que no esté ya cancelada
+    if (compra.cancelado) {
+      return res.status(400).json({ error: 'La compra ya está cancelada' });
+    }
+
+    // Actualizar la compra como cancelada
+    const stmt = db.prepare(`
+      UPDATE compras
+      SET cancelado = 1,
+          motivo_cancelacion = ?,
+          cancelado_por_id = ?,
+          fecha_cancelacion = CURRENT_TIMESTAMP,
+          updated_at = CURRENT_TIMESTAMP
+      WHERE id = ?
+    `);
+
+    stmt.run(motivo, userId, id);
+
+    res.json({ success: true, message: 'Compra cancelada exitosamente' });
+  } catch (error) {
+    console.error('Error al cancelar compra:', error);
+    res.status(500).json({ error: 'Error interno del servidor' });
+  }
+}
+
+export function getComprasCanceladas(req, res) {
+  try {
+    const { userId, isAdmin } = req.query;
+
+    let query = `
+      SELECT
+        c.*,
+        u.id as solicitante_id,
+        u.nombre as solicitante_nombre,
+        u.avatar as solicitante_avatar,
+        uc.id as cancelado_por_id,
+        uc.nombre as cancelado_por_nombre,
+        uc.avatar as cancelado_por_avatar,
+        uc.rol as cancelado_por_rol
+      FROM compras c
+      LEFT JOIN usuarios u ON c.solicitante_id = u.id
+      LEFT JOIN usuarios uc ON c.cancelado_por_id = uc.id
+      WHERE c.cancelado = 1
+    `;
+
+    // Si no es admin, solo mostrar sus propias compras canceladas
+    if (!isAdmin || isAdmin === 'false') {
+      query += ` AND c.solicitante_id = ?`;
+    }
+
+    query += ` ORDER BY c.fecha_cancelacion DESC`;
+
+    const stmt = db.prepare(query);
+    const compras = isAdmin === 'false' ? stmt.all(userId) : stmt.all();
+
+    const formattedCompras = compras.map(c => ({
+      id: c.id,
+      proveedor: c.proveedor,
+      monto: c.monto,
+      ticket: c.ticket,
+      fecha: c.fecha,
+      obra: c.obra,
+      descripcion: c.descripcion,
+      estado: c.estado,
+      solicitante: {
+        id: c.solicitante_id,
+        nombre: c.solicitante_nombre,
+        avatar: c.solicitante_avatar
+      },
+      urgente: Boolean(c.urgente),
+      cancelado: Boolean(c.cancelado),
+      motivo_cancelacion: c.motivo_cancelacion,
+      fecha_cancelacion: c.fecha_cancelacion,
+      cancelado_por: c.cancelado_por_id ? {
+        id: c.cancelado_por_id,
+        nombre: c.cancelado_por_nombre,
+        avatar: c.cancelado_por_avatar,
+        rol: c.cancelado_por_rol
+      } : null
+    }));
+
+    res.json(formattedCompras);
+  } catch (error) {
+    console.error('Error al obtener compras canceladas:', error);
     res.status(500).json({ error: 'Error interno del servidor' });
   }
 }

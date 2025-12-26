@@ -5,7 +5,9 @@ import {
   createPedido,
   updatePedido,
   deletePedido,
-  addComentario
+  addComentario,
+  cancelarPedido,
+  getPedidosCancelados
 } from '../controllers/pedidosController.js';
 import { authenticateToken } from '../middleware/auth.js';
 
@@ -15,10 +17,12 @@ const router = express.Router();
 router.use(authenticateToken);
 
 router.get('/', getAllPedidos);
-router.get('/:id', getPedidoById);
+router.get('/cancelados/lista', getPedidosCancelados);
 router.post('/', createPedido);
+router.put('/:id/cancelar', cancelarPedido);
+router.post('/:id/comentarios', addComentario);
+router.get('/:id', getPedidoById);
 router.put('/:id', updatePedido);
 router.delete('/:id', deletePedido);
-router.post('/:id/comentarios', addComentario);
 
 export default router;

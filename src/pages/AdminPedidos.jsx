@@ -8,23 +8,35 @@ import './AdminPanel.css'
 function AdminPedidos() {
   const { user, logout } = useAuth()
   const navigate = useNavigate()
+  const [vista, setVista] = useState('activos') // 'activos' o 'cancelados'
   const [filtroEstado, setFiltroEstado] = useState('todos')
   const [busqueda, setBusqueda] = useState('')
   const [pedidos, setPedidos] = useState([])
+  const [pedidosCancelados, setPedidosCancelados] = useState([])
   const [loading, setLoading] = useState(true)
   const [itemSeleccionado, setItemSeleccionado] = useState(null)
   const [showModal, setShowModal] = useState(false)
   const [comentario, setComentario] = useState('')
+  const [modalCancelar, setModalCancelar] = useState(false)
+  const [pedidoACancelar, setPedidoACancelar] = useState(null)
+  const [motivoCancelacion, setMotivoCancelacion] = useState('')
+  const [modalDetalle, setModalDetalle] = useState(false)
+  const [pedidoDetalle, setPedidoDetalle] = useState(null)
 
   useEffect(() => {
-    cargarPedidos()
-  }, [])
+    cargarDatos()
+  }, [vista])
 
-  const cargarPedidos = async () => {
+  const cargarDatos = async () => {
     try {
       setLoading(true)
-      const data = await pedidosAPI.getAll(user.id, true)
-      setPedidos(data)
+      if (vista === 'activos') {
+        const data = await pedidosAPI.getAll(user.id, true)
+        setPedidos(data)
+      } else {
+        const data = await pedidosAPI.getCancelados(user.id, true)
+        setPedidosCancelados(data)
+      }
     } catch (error) {
       console.error('Error al cargar pedidos:', error)
     } finally {
@@ -32,10 +44,54 @@ function AdminPedidos() {
     }
   }
 
-  const pedidosFiltrados = pedidos.filter(pedido => {
+  const cargarPedidos = cargarDatos
+
+  const abrirModalCancelar = (pedido) => {
+    setPedidoACancelar(pedido)
+    setMotivoCancelacion('')
+    setModalCancelar(true)
+  }
+
+  const confirmarCancelacion = async () => {
+    if (!motivoCancelacion.trim()) {
+      alert('Debes proporcionar un motivo de cancelación')
+      return
+    }
+
+    try {
+      await pedidosAPI.cancelar(pedidoACancelar.id, motivoCancelacion)
+      setModalCancelar(false)
+      setPedidoACancelar(null)
+      setMotivoCancelacion('')
+      cargarDatos()
+      alert('Pedido cancelado exitosamente')
+    } catch (error) {
+      console.error('Error al cancelar pedido:', error)
+      alert('Error al cancelar el pedido: ' + error.message)
+    }
+  }
+
+  const verDetalleCancelacion = (pedido) => {
+    setPedidoDetalle(pedido)
+    setModalDetalle(true)
+  }
+
+  const formatearFechaCompleta = (fecha) => {
+    return new Date(fecha).toLocaleString('es-ES', {
+      day: '2-digit',
+      month: 'short',
+      year: 'numeric',
+      hour: '2-digit',
+      minute: '2-digit'
+    })
+  }
+
+  const listaPedidos = vista === 'activos' ? pedidos : pedidosCancelados
+
+  const pedidosFiltrados = listaPedidos.filter(pedido => {
     let pasa = true
 
-    if (filtroEstado !== 'todos') {
+    if (vista === 'activos' && filtroEstado !== 'todos') {
       if (filtroEstado === 'registrado') pasa = pedido.estado === 'Registrado'
       else if (filtroEstado === 'proceso') pasa = pedido.estado === 'En Proceso'
       else if (filtroEstado === 'revisado') pasa = pedido.estado === 'Revisado'
@@ -231,7 +287,24 @@ function AdminPedidos() {
           <button className="btn-nueva-solicitud" onClick={() => navigate('/')}>+ Nuevo Pedido</button>
         </div>
 
-        <div className="admin-tabs">
+        {/* Sub-tabs para Activos/Cancelados */}
+        <div className="sub-tabs-admin">
+          <button
+            className={`sub-tab-admin ${vista === 'activos' ? 'active' : ''}`}
+            onClick={() => setVista('activos')}
+          >
+            📋 Activos
+          </button>
+          <button
+            className={`sub-tab-admin ${vista === 'cancelados' ? 'active' : ''}`}
+            onClick={() => setVista('cancelados')}
+          >
+            ❌ Cancelados
+          </button>
+        </div>
+
+        {vista === 'activos' && (
+          <div className="admin-tabs">
           <button className={`admin-tab ${filtroEstado === 'todos' ? 'active' : ''}`} onClick={() => setFiltroEstado('todos')}>
             Todos <span className="tab-count">{contadores.todos}</span>
           </button>
@@ -250,7 +323,8 @@ function AdminPedidos() {
           <button className={`admin-tab ${filtroEstado === 'urgentes' ? 'active' : ''}`} onClick={() => setFiltroEstado('urgentes')}>
             Urgentes <span className="tab-count">{contadores.urgentes}</span>
           </button>
-        </div>
+          </div>
+        )}
 
         <div className="admin-filters">
           <div className="search-box">
@@ -275,15 +349,16 @@ function AdminPedidos() {
                 <th>CLIENTE</th>
                 <th>MONTO</th>
                 <th>SOLICITANTE</th>
+                {vista === 'cancelados' && <th>CANCELADO POR</th>}
                 <th>ESTADO</th>
                 <th>ACCIONES</th>
               </tr>
             </thead>
             <tbody>
               {pedidosFiltrados.map(pedido => (
-                <tr key={pedido.id}>
+                <tr key={pedido.id} className={pedido.cancelado ? 'row-cancelado' : ''}>
                   <td>#{pedido.id}</td>
-                  <td>{new Date(pedido.fecha).toLocaleDateString('es-ES', { day: '2-digit', month: 'short' })}</td>
+                  <td>{new Date(pedido.cancelado ? pedido.fecha_cancelacion : pedido.fecha).toLocaleDateString('es-ES', { day: '2-digit', month: 'short' })}</td>
                   <td><strong>{pedido.obra}</strong></td>
                   <td>{pedido.cliente}</td>
                   <td>{pedido.monto ? `$${pedido.monto.toFixed(2)}` : '---'}</td>
@@ -293,15 +368,40 @@ function AdminPedidos() {
                       <span>{pedido.solicitante.nombre}</span>
                     </div>
                   </td>
+                  {vista === 'cancelados' && (
+                    <td>
+                      {pedido.cancelado_por && (
+                        <div className="solicitante-cell">
+                          <span className="solicitante-avatar">{pedido.cancelado_por.avatar}</span>
+                          <span>{pedido.cancelado_por.nombre}</span>
+                        </div>
+                      )}
+                    </td>
+                  )}
                   <td>
                     <div className="estado-cell">
-                      <span className="estado-badge">{pedido.estado}</span>
-                      {pedido.urgente && <span className="urgente-icon">🔴</span>}
-                      {pedido.incompleto && <span className="incompleto-icon">⚠️</span>}
+                      {pedido.cancelado ? (
+                        <span className="estado-badge cancelado">CANCELADO</span>
+                      ) : (
+                        <>
+                          <span className="estado-badge">{pedido.estado}</span>
+                          {pedido.urgente && <span className="urgente-icon">🔴</span>}
+                          {pedido.incompleto && <span className="incompleto-icon">⚠️</span>}
+                        </>
+                      )}
                     </div>
                   </td>
                   <td>
-                    <button className="btn-action" onClick={() => handleItemClick(pedido)} title="Ver detalle y gestionar">👁️</button>
+                    <div className="acciones-cell">
+                      <button className="btn-action" onClick={() => pedido.cancelado ? verDetalleCancelacion(pedido) : handleItemClick(pedido)} title={pedido.cancelado ? "Ver detalle de cancelación" : "Ver detalle y gestionar"}>
+                        👁️
+                      </button>
+                      {!pedido.cancelado && (
+                        <button className="btn-cancelar-admin" onClick={() => abrirModalCancelar(pedido)} title="Cancelar pedido">
+                          ❌
+                        </button>
+                      )}
+                    </div>
                   </td>
                 </tr>
               ))}
@@ -398,6 +498,83 @@ function AdminPedidos() {
 
             <div className="modal-actions" style={{ marginTop: '20px' }}>
               <button className="btn-secondary" onClick={() => setShowModal(false)}>Cerrar</button>
+            </div>
+          </div>
+        </Modal>
+      )}
+
+      {/* Modal para cancelar */}
+      {modalCancelar && pedidoACancelar && (
+        <Modal title="Cancelar Pedido" onClose={() => setModalCancelar(false)}>
+          <div className="modal-form">
+            <p style={{ marginBottom: '15px' }}>
+              ¿Estás seguro de que deseas cancelar este pedido?
+            </p>
+            <div className="pedido-cancelar-info">
+              <p><strong>Pedido ID:</strong> #{pedidoACancelar.id}</p>
+              <p><strong>Obra:</strong> {pedidoACancelar.obra}</p>
+              <p><strong>Cliente:</strong> {pedidoACancelar.cliente}</p>
+              <p><strong>Solicitante:</strong> {pedidoACancelar.solicitante.nombre}</p>
+            </div>
+            <div className="form-group">
+              <label htmlFor="motivo">Motivo de cancelación *</label>
+              <textarea
+                id="motivo"
+                rows="4"
+                placeholder="Explica por qué se cancela este pedido..."
+                value={motivoCancelacion}
+                onChange={(e) => setMotivoCancelacion(e.target.value)}
+                required
+              />
+            </div>
+            <div className="modal-actions">
+              <button
+                type="button"
+                className="btn-secondary"
+                onClick={() => setModalCancelar(false)}
+              >
+                Volver
+              </button>
+              <button
+                type="button"
+                className="btn-danger"
+                onClick={confirmarCancelacion}
+              >
+                Confirmar Cancelación
+              </button>
+            </div>
+          </div>
+        </Modal>
+      )}
+
+      {/* Modal de detalle de cancelación */}
+      {modalDetalle && pedidoDetalle && (
+        <Modal title="Detalle de Cancelación" onClose={() => setModalDetalle(false)}>
+          <div className="detalle-cancelacion">
+            <div className="info-row">
+              <strong>Pedido:</strong>
+              <span>#{pedidoDetalle.id} - {pedidoDetalle.obra}</span>
+            </div>
+            <div className="info-row">
+              <strong>Solicitante:</strong>
+              <span>
+                {pedidoDetalle.solicitante.avatar} {pedidoDetalle.solicitante.nombre}
+              </span>
+            </div>
+            <div className="info-row">
+              <strong>Cancelado por:</strong>
+              <span>
+                {pedidoDetalle.cancelado_por.avatar} {pedidoDetalle.cancelado_por.nombre}
+                {pedidoDetalle.cancelado_por.rol === 'admin' && ' (Administrador)'}
+              </span>
+            </div>
+            <div className="info-row">
+              <strong>Fecha de cancelación:</strong>
+              <span>{formatearFechaCompleta(pedidoDetalle.fecha_cancelacion)}</span>
+            </div>
+            <div className="info-row motivo">
+              <strong>Motivo:</strong>
+              <p>{pedidoDetalle.motivo_cancelacion}</p>
             </div>
           </div>
         </Modal>

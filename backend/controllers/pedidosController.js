@@ -10,15 +10,21 @@ export function getAllPedidos(req, res) {
         u.id as solicitante_id,
         u.nombre as solicitante_nombre,
         u.avatar as solicitante_avatar,
+        uc.nombre as cancelado_por_nombre,
+        uc.avatar as cancelado_por_avatar,
         GROUP_CONCAT(pc.comentario, '|||') as comentarios
       FROM pedidos p
       LEFT JOIN usuarios u ON p.solicitante_id = u.id
+      LEFT JOIN usuarios uc ON p.cancelado_por_id = uc.id
       LEFT JOIN pedido_comentarios pc ON p.id = pc.pedido_id
     `;
 
     // Si no es admin, solo mostrar sus propios pedidos
+    // Filtramos los cancelados (se verán en otra vista)
     if (!isAdmin || isAdmin === 'false') {
-      query += ` WHERE p.solicitante_id = ?`;
+      query += ` WHERE p.solicitante_id = ? AND p.cancelado = 0`;
+    } else {
+      query += ` WHERE p.cancelado = 0`;
     }
 
     query += ` GROUP BY p.id ORDER BY p.id DESC`;
@@ -219,6 +225,115 @@ export function addComentario(req, res) {
     res.status(201).json({ success: true, message: 'Comentario agregado exitosamente' });
   } catch (error) {
     console.error('Error al agregar comentario:', error);
+    res.status(500).json({ error: 'Error interno del servidor' });
+  }
+}
+
+export function cancelarPedido(req, res) {
+  try {
+    const { id } = req.params;
+    const { motivo } = req.body;
+    const userId = req.user.id;
+
+    if (!motivo || motivo.trim() === '') {
+      return res.status(400).json({ error: 'El motivo de cancelación es requerido' });
+    }
+
+    // Verificar que el pedido existe
+    const pedido = db.prepare('SELECT * FROM pedidos WHERE id = ?').get(id);
+    if (!pedido) {
+      return res.status(404).json({ error: 'Pedido no encontrado' });
+    }
+
+    // Verificar que no esté ya cancelado
+    if (pedido.cancelado) {
+      return res.status(400).json({ error: 'El pedido ya está cancelado' });
+    }
+
+    // Actualizar el pedido como cancelado
+    const stmt = db.prepare(`
+      UPDATE pedidos
+      SET cancelado = 1,
+          motivo_cancelacion = ?,
+          cancelado_por_id = ?,
+          fecha_cancelacion = CURRENT_TIMESTAMP,
+          updated_at = CURRENT_TIMESTAMP
+      WHERE id = ?
+    `);
+
+    stmt.run(motivo, userId, id);
+
+    res.json({ success: true, message: 'Pedido cancelado exitosamente' });
+  } catch (error) {
+    console.error('Error al cancelar pedido:', error);
+    res.status(500).json({ error: 'Error interno del servidor' });
+  }
+}
+
+export function getPedidosCancelados(req, res) {
+  try {
+    const { userId, isAdmin } = req.query;
+
+    let query = `
+      SELECT
+        p.*,
+        u.id as solicitante_id,
+        u.nombre as solicitante_nombre,
+        u.avatar as solicitante_avatar,
+        uc.id as cancelado_por_id,
+        uc.nombre as cancelado_por_nombre,
+        uc.avatar as cancelado_por_avatar,
+        uc.rol as cancelado_por_rol,
+        GROUP_CONCAT(pc.comentario, '|||') as comentarios
+      FROM pedidos p
+      LEFT JOIN usuarios u ON p.solicitante_id = u.id
+      LEFT JOIN usuarios uc ON p.cancelado_por_id = uc.id
+      LEFT JOIN pedido_comentarios pc ON p.id = pc.pedido_id
+      WHERE p.cancelado = 1
+    `;
+
+    // Si no es admin, solo mostrar sus propios pedidos cancelados
+    if (!isAdmin || isAdmin === 'false') {
+      query += ` AND p.solicitante_id = ?`;
+    }
+
+    query += ` GROUP BY p.id ORDER BY p.fecha_cancelacion DESC`;
+
+    const stmt = db.prepare(query);
+    const pedidos = isAdmin === 'false' ? stmt.all(userId) : stmt.all();
+
+    // Formatear la respuesta
+    const formattedPedidos = pedidos.map(p => ({
+      id: p.id,
+      cliente: p.cliente,
+      estado: p.estado,
+      fecha: p.fecha,
+      obra: p.obra,
+      descripcion: p.descripcion,
+      monto: p.monto,
+      solicitante: {
+        id: p.solicitante_id,
+        nombre: p.solicitante_nombre,
+        avatar: p.solicitante_avatar
+      },
+      fotos: p.fotos,
+      urgente: Boolean(p.urgente),
+      incompleto: Boolean(p.incompleto),
+      cancelado: Boolean(p.cancelado),
+      motivo_cancelacion: p.motivo_cancelacion,
+      fecha_cancelacion: p.fecha_cancelacion,
+      cancelado_por: p.cancelado_por_id ? {
+        id: p.cancelado_por_id,
+        nombre: p.cancelado_por_nombre,
+        avatar: p.cancelado_por_avatar,
+        rol: p.cancelado_por_rol
+      } : null,
+      comentarios: p.comentarios ? p.comentarios.split('|||').filter(c => c) : []
+    }));
+
+    res.json(formattedPedidos);
+  } catch (error) {
+    console.error('Error al obtener pedidos cancelados:', error);
     res.status(500).json({ error: 'Error interno del servidor' });
   }
 }

@@ -8,23 +8,35 @@ import './AdminPanel.css'
 function AdminCompras() {
   const { user, logout } = useAuth()
   const navigate = useNavigate()
+  const [vista, setVista] = useState('activas') // 'activas' o 'canceladas'
   const [filtroEstado, setFiltroEstado] = useState('todos')
   const [busqueda, setBusqueda] = useState('')
   const [compras, setCompras] = useState([])
+  const [comprasCanceladas, setComprasCanceladas] = useState([])
   const [loading, setLoading] = useState(true)
   const [itemSeleccionado, setItemSeleccionado] = useState(null)
   const [showModal, setShowModal] = useState(false)
   const [comentario, setComentario] = useState('')
+  const [modalCancelar, setModalCancelar] = useState(false)
+  const [compraACancelar, setCompraACancelar] = useState(null)
+  const [motivoCancelacion, setMotivoCancelacion] = useState('')
+  const [modalDetalle, setModalDetalle] = useState(false)
+  const [compraDetalle, setCompraDetalle] = useState(null)
 
   useEffect(() => {
-    cargarCompras()
-  }, [])
+    cargarDatos()
+  }, [vista])
 
-  const cargarCompras = async () => {
+  const cargarDatos = async () => {
     try {
       setLoading(true)
-      const data = await comprasAPI.getAll(user.id, true)
-      setCompras(data)
+      if (vista === 'activas') {
+        const data = await comprasAPI.getAll(user.id, true)
+        setCompras(data)
+      } else {
+        const data = await comprasAPI.getCanceladas(user.id, true)
+        setComprasCanceladas(data)
+      }
     } catch (error) {
       console.error('Error al cargar compras:', error)
     } finally {
@@ -32,10 +44,54 @@ function AdminCompras() {
     }
   }
 
-  const comprasFiltradas = compras.filter(compra => {
+  const cargarCompras = cargarDatos
+
+  const abrirModalCancelar = (compra) => {
+    setCompraACancelar(compra)
+    setMotivoCancelacion('')
+    setModalCancelar(true)
+  }
+
+  const confirmarCancelacion = async () => {
+    if (!motivoCancelacion.trim()) {
+      alert('Debes proporcionar un motivo de cancelación')
+      return
+    }
+
+    try {
+      await comprasAPI.cancelar(compraACancelar.id, motivoCancelacion)
+      setModalCancelar(false)
+      setCompraACancelar(null)
+      setMotivoCancelacion('')
+      cargarDatos()
+      alert('Compra cancelada exitosamente')
+    } catch (error) {
+      console.error('Error al cancelar compra:', error)
+      alert('Error al cancelar la compra: ' + error.message)
+    }
+  }
+
+  const verDetalleCancelacion = (compra) => {
+    setCompraDetalle(compra)
+    setModalDetalle(true)
+  }
+
+  const formatearFechaCompleta = (fecha) => {
+    return new Date(fecha).toLocaleString('es-ES', {
+      day: '2-digit',
+      month: 'short',
+      year: 'numeric',
+      hour: '2-digit',
+      minute: '2-digit'
+    })
+  }
+
+  const listaCompras = vista === 'activas' ? compras : comprasCanceladas
+
+  const comprasFiltradas = listaCompras.filter(compra => {
     let pasa = true
 
-    if (filtroEstado !== 'todos') {
+    if (vista === 'activas' && filtroEstado !== 'todos') {
       if (filtroEstado === 'pendiente') pasa = !compra.ticket
       else if (filtroEstado === 'subido') pasa = compra.ticket !== null
       else if (filtroEstado === 'urgentes') pasa = compra.urgente
@@ -178,7 +234,24 @@ function AdminCompras() {
           <button className="btn-nueva-solicitud" onClick={() => navigate('/')}>+ Nueva Compra</button>
         </div>
 
-        <div className="admin-tabs">
+        {/* Sub-tabs para Activas/Canceladas */}
+        <div className="sub-tabs-admin">
+          <button
+            className={`sub-tab-admin ${vista === 'activas' ? 'active' : ''}`}
+            onClick={() => setVista('activas')}
+          >
+            📋 Activas
+          </button>
+          <button
+            className={`sub-tab-admin ${vista === 'canceladas' ? 'active' : ''}`}
+            onClick={() => setVista('canceladas')}
+          >
+            ❌ Canceladas
+          </button>
+        </div>
+
+        {vista === 'activas' && (
+          <div className="admin-tabs">
           <button className={`admin-tab ${filtroEstado === 'todos' ? 'active' : ''}`} onClick={() => setFiltroEstado('todos')}>
             Todos <span className="tab-count">{contadores.todos}</span>
           </button>
@@ -191,7 +264,8 @@ function AdminCompras() {
           <button className={`admin-tab ${filtroEstado === 'urgentes' ? 'active' : ''}`} onClick={() => setFiltroEstado('urgentes')}>
             Urgentes <span className="tab-count">{contadores.urgentes}</span>
           </button>
-        </div>
+          </div>
+        )}
 
         <div className="admin-filters">
           <div className="search-box">
@@ -218,26 +292,29 @@ function AdminCompras() {
                 <th>MONTO</th>
                 <th>TICKET</th>
                 <th>SOLICITANTE</th>
+                {vista === 'canceladas' && <th>CANCELADO POR</th>}
                 <th>ACCIONES</th>
               </tr>
             </thead>
             <tbody>
               {comprasFiltradas.map(compra => (
-                <tr key={compra.id}>
+                <tr key={compra.id} className={compra.cancelado ? 'row-cancelado' : ''}>
                   <td>#{compra.id}</td>
-                  <td>{new Date(compra.fecha).toLocaleDateString('es-ES', { day: '2-digit', month: 'short' })}</td>
+                  <td>{new Date(compra.cancelado ? compra.fecha_cancelacion : compra.fecha).toLocaleDateString('es-ES', { day: '2-digit', month: 'short' })}</td>
                   <td><strong>{compra.proveedor}</strong></td>
                   <td>{compra.obra}</td>
                   <td className="descripcion-cell">{compra.descripcion?.substring(0, 50)}...</td>
                   <td>${compra.monto.toFixed(2)}</td>
                   <td>
                     <div className="estado-cell">
-                      {compra.ticket ? (
+                      {compra.cancelado ? (
+                        <span className="estado-badge cancelado">CANCELADA</span>
+                      ) : compra.ticket ? (
                         <span className="estado-badge">✅ {compra.ticket}</span>
                       ) : (
                         <span className="estado-badge" style={{ background: '#ffa500' }}>⏳ Pendiente</span>
                       )}
-                      {compra.urgente && <span className="urgente-icon">🔴</span>}
+                      {!compra.cancelado && compra.urgente && <span className="urgente-icon">🔴</span>}
                     </div>
                   </td>
                   <td>
@@ -246,8 +323,27 @@ function AdminCompras() {
                       <span>{compra.solicitante.nombre}</span>
                     </div>
                   </td>
+                  {vista === 'canceladas' && (
+                    <td>
+                      {compra.cancelado_por && (
+                        <div className="solicitante-cell">
+                          <span className="solicitante-avatar">{compra.cancelado_por.avatar}</span>
+                          <span>{compra.cancelado_por.nombre}</span>
+                        </div>
+                      )}
+                    </td>
+                  )}
                   <td>
-                    <button className="btn-action" onClick={() => handleItemClick(compra)}>⚙️</button>
+                    <div className="acciones-cell">
+                      <button className="btn-action" onClick={() => compra.cancelado ? verDetalleCancelacion(compra) : handleItemClick(compra)}>
+                        {compra.cancelado ? '👁️' : '⚙️'}
+                      </button>
+                      {!compra.cancelado && (
+                        <button className="btn-cancelar-admin" onClick={() => abrirModalCancelar(compra)} title="Cancelar compra">
+                          ❌
+                        </button>
+                      )}
+                    </div>
                   </td>
                 </tr>
               ))}
@@ -298,6 +394,92 @@ function AdminCompras() {
 
             <div className="modal-actions" style={{ marginTop: '20px' }}>
               <button className="btn-secondary" onClick={() => setShowModal(false)}>Cerrar</button>
+            </div>
+          </div>
+        </Modal>
+      )}
+
+      {/* Modal para cancelar */}
+      {modalCancelar && compraACancelar && (
+        <Modal title="Cancelar Compra" onClose={() => setModalCancelar(false)}>
+          <div className="modal-form">
+            <p style={{ marginBottom: '15px' }}>
+              ¿Estás seguro de que deseas cancelar esta compra?
+            </p>
+            <div className="pedido-cancelar-info">
+              <p><strong>Compra ID:</strong> #{compraACancelar.id}</p>
+              <p><strong>Proveedor:</strong> {compraACancelar.proveedor}</p>
+              <p><strong>Obra:</strong> {compraACancelar.obra}</p>
+              <p><strong>Monto:</strong> ${compraACancelar.monto.toFixed(2)}</p>
+              <p><strong>Solicitante:</strong> {compraACancelar.solicitante.nombre}</p>
+            </div>
+            <div className="form-group">
+              <label htmlFor="motivo">Motivo de cancelación *</label>
+              <textarea
+                id="motivo"
+                rows="4"
+                placeholder="Explica por qué se cancela esta compra..."
+                value={motivoCancelacion}
+                onChange={(e) => setMotivoCancelacion(e.target.value)}
+                required
+              />
+            </div>
+            <div className="modal-actions">
+              <button
+                type="button"
+                className="btn-secondary"
+                onClick={() => setModalCancelar(false)}
+              >
+                Volver
+              </button>
+              <button
+                type="button"
+                className="btn-danger"
+                onClick={confirmarCancelacion}
+              >
+                Confirmar Cancelación
+              </button>
+            </div>
+          </div>
+        </Modal>
+      )}
+
+      {/* Modal de detalle de cancelación */}
+      {modalDetalle && compraDetalle && (
+        <Modal title="Detalle de Cancelación" onClose={() => setModalDetalle(false)}>
+          <div className="detalle-cancelacion">
+            <div className="info-row">
+              <strong>Compra:</strong>
+              <span>#{compraDetalle.id} - {compraDetalle.proveedor}</span>
+            </div>
+            <div className="info-row">
+              <strong>Obra:</strong>
+              <span>{compraDetalle.obra}</span>
+            </div>
+            <div className="info-row">
+              <strong>Monto:</strong>
+              <span>${compraDetalle.monto.toFixed(2)}</span>
+            </div>
+            <div className="info-row">
+              <strong>Solicitante:</strong>
+              <span>
+                {compraDetalle.solicitante.avatar} {compraDetalle.solicitante.nombre}
+              </span>
+            </div>
+            <div className="info-row">
+              <strong>Cancelado por:</strong>
+              <span>
+                {compraDetalle.cancelado_por.avatar} {compraDetalle.cancelado_por.nombre}
+                {compraDetalle.cancelado_por.rol === 'admin' && ' (Administrador)'}
+              </span>
+            </div>
+            <div className="info-row">
+              <strong>Fecha de cancelación:</strong>
+              <span>{formatearFechaCompleta(compraDetalle.fecha_cancelacion)}</span>
+            </div>
+            <div className="info-row motivo">
+              <strong>Motivo:</strong>
+              <p>{compraDetalle.motivo_cancelacion}</p>
             </div>
           </div>
         </Modal>
