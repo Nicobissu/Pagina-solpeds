@@ -160,6 +160,28 @@
   transform: translateX(3px);
 }
 
+.btn-delete-notif {
+  background: transparent;
+  border: none;
+  font-size: 1.5rem;
+  color: #dc2626;
+  cursor: pointer;
+  padding: 0.25rem 0.5rem;
+  border-radius: 4px;
+  transition: all 0.2s;
+  opacity: 0;
+  line-height: 1;
+}
+
+.notif-card:hover .btn-delete-notif {
+  opacity: 1;
+}
+
+.btn-delete-notif:hover {
+  background-color: #fee2e2;
+  transform: scale(1.1);
+}
+
 .empty-state {
   background: white;
   border-radius: var(--border-radius);
@@ -212,6 +234,10 @@
   }
 
   .btn-arrow-notif {
+    opacity: 1;
+  }
+
+  .btn-delete-notif {
     opacity: 1;
   }
 }

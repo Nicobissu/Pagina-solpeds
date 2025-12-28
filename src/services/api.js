@@ -111,6 +111,19 @@ export const pedidosAPI = {
     return handleResponse(response);
   },
 
+  updateUsuario: async (id, formData) => {
+    const token = localStorage.getItem('token');
+    const response = await fetch(`${API_URL}/pedidos/${id}/editar-usuario`, {
+      method: 'PUT',
+      headers: {
+        ...(token && { 'Authorization': `Bearer ${token}` })
+        // NO incluir Content-Type, el navegador lo establece automáticamente con FormData
+      },
+      body: formData
+    });
+    return handleResponse(response);
+  },
+
   delete: async (id) => {
     const response = await fetch(`${API_URL}/pedidos/${id}`, {
       method: 'DELETE',

@@ -47,16 +47,20 @@ export function prepare(sql) {
     run: (...params) => {
       try {
         db.run(sql, params);
-        saveDatabase();
 
-        // Obtener el último ID insertado
+        // Obtener el último ID insertado ANTES de guardar
         const lastIdStmt = db.prepare('SELECT last_insert_rowid() as id');
         lastIdStmt.step();
         const row = lastIdStmt.getAsObject();
         lastIdStmt.free();
 
+        const lastId = row.id || 0;
+
+        // Guardar después de obtener el ID
+        saveDatabase();
+
         return {
-          lastInsertRowid: row.id,
+          lastInsertRowid: lastId,
           changes: 1
         };
       } catch (error) {
@@ -146,9 +150,11 @@ export async function initDatabase() {
     CREATE TABLE IF NOT EXISTS pedido_comentarios (
       id INTEGER PRIMARY KEY AUTOINCREMENT,
       pedido_id INTEGER NOT NULL,
+      usuario_id INTEGER NOT NULL,
       comentario TEXT NOT NULL,
       created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-      FOREIGN KEY (pedido_id) REFERENCES pedidos(id) ON DELETE CASCADE
+      FOREIGN KEY (pedido_id) REFERENCES pedidos(id) ON DELETE CASCADE,
+      FOREIGN KEY (usuario_id) REFERENCES usuarios(id)
     )
   `);
 
@@ -252,6 +258,22 @@ export async function initDatabase() {
       console.log('🔄 Migrando tabla pedidos: agregando columna de imágenes...');
       db.exec('ALTER TABLE pedidos ADD COLUMN imagenes TEXT');
       console.log('✅ Columna de imágenes agregada a pedidos');
+    }
+
+    if (!pedidosColumns.includes('fecha_eliminacion_programada')) {
+      console.log('🔄 Migrando tabla pedidos: agregando columna de eliminación programada...');
+      db.exec('ALTER TABLE pedidos ADD COLUMN fecha_eliminacion_programada DATETIME');
+      console.log('✅ Columna de eliminación programada agregada a pedidos');
+    }
+
+    // Verificar si la tabla de comentarios tiene la columna usuario_id
+    const comentariosInfo = db.exec("PRAGMA table_info(pedido_comentarios)");
+    const comentariosColumns = comentariosInfo.length > 0 ? comentariosInfo[0].values.map(row => row[1]) : [];
+
+    if (!comentariosColumns.includes('usuario_id')) {
+      console.log('🔄 Migrando tabla pedido_comentarios: agregando columna usuario_id...');
+      db.exec('ALTER TABLE pedido_comentarios ADD COLUMN usuario_id INTEGER');
+      console.log('✅ Columna usuario_id agregada a pedido_comentarios');
     }
 
     // Verificar si las columnas de cancelación existen en compras

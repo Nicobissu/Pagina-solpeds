@@ -1,5 +1,39 @@
 import db from '../config/database.js';
 
+// Helper para crear notificaciones
+function crearNotificacion(usuarioId, tipo, titulo, mensaje, icono = '🔔') {
+  try {
+    const stmt = db.prepare(`
+      INSERT INTO notificaciones (usuario_id, tipo, titulo, mensaje, icono)
+      VALUES (?, ?, ?, ?, ?)
+    `);
+    stmt.run(usuarioId, tipo, titulo, mensaje, icono);
+  } catch (error) {
+    console.error('Error al crear notificación:', error);
+  }
+}
+
+// Helper para obtener fecha local en formato YYYY-MM-DD
+function getFechaLocal() {
+  const ahora = new Date();
+  const year = ahora.getFullYear();
+  const mes = String(ahora.getMonth() + 1).padStart(2, '0');
+  const dia = String(ahora.getDate()).padStart(2, '0');
+  return `${year}-${mes}-${dia}`;
+}
+
+// Helper para obtener fecha y hora local en formato ISO
+function getFechaHoraLocal() {
+  const ahora = new Date();
+  const year = ahora.getFullYear();
+  const mes = String(ahora.getMonth() + 1).padStart(2, '0');
+  const dia = String(ahora.getDate()).padStart(2, '0');
+  const horas = String(ahora.getHours()).padStart(2, '0');
+  const minutos = String(ahora.getMinutes()).padStart(2, '0');
+  const segundos = String(ahora.getSeconds()).padStart(2, '0');
+  return `${year}-${mes}-${dia} ${horas}:${minutos}:${segundos}`;
+}
+
 export function getAllCompras(req, res) {
   try {
     const { userId, isAdmin } = req.query;
@@ -108,7 +142,7 @@ export function createCompra(req, res) {
       });
     }
 
-    const fecha = new Date().toISOString().split('T')[0];
+    const fecha = getFechaHoraLocal();
     const estado = ticket ? 'Subido' : 'Pendiente';
 
     const stmt = db.prepare(`
@@ -131,10 +165,38 @@ export function createCompra(req, res) {
       urgente ? 1 : 0
     );
 
+    const compraId = result.lastInsertRowid;
+
+    // Notificar a todos los administradores
+    try {
+      const adminsStmt = db.prepare("SELECT id FROM usuarios WHERE rol = 'admin'");
+      const admins = adminsStmt.all();
+
+      const notifStmt = db.prepare(`
+        INSERT INTO notificaciones (usuario_id, tipo, titulo, mensaje, icono)
+        VALUES (?, ?, ?, ?, ?)
+      `);
+
+      admins.forEach(admin => {
+        notifStmt.run(
+          admin.id,
+          'info',
+          'Nueva compra registrada',
+          `${req.user.nombre} registró una compra de ${proveedor} por $${parseFloat(monto).toFixed(2)} en ${obra}${urgente ? ' (URGENTE)' : ''}`,
+          urgente ? '⚠️' : '🧾'
+        );
+      });
+
+      console.log(`✅ Notificaciones enviadas a ${admins.length} administradores`);
+    } catch (notifError) {
+      console.error('⚠️ Error al enviar notificaciones:', notifError);
+      // No fallar la creación de la compra si falla la notificación
+    }
+
     res.status(201).json({
       success: true,
       message: 'Compra registrada exitosamente',
-      compraId: result.lastInsertRowid
+      compraId: compraId
     });
   } catch (error) {
     console.error('Error al crear compra:', error);
@@ -179,6 +241,17 @@ export function updateCompra(req, res) {
     const query = `UPDATE compras SET ${updateFields.join(', ')} WHERE id = ?`;
     const stmt = db.prepare(query);
     stmt.run(...values);
+
+    // Si cambió el estado, crear notificación para el solicitante
+    if (updates.estado && updates.estado !== compra.estado) {
+      crearNotificacion(
+        compra.solicitante_id,
+        'info',
+        'Estado de compra actualizado',
+        `La compra #${compra.id} (${compra.proveedor}) cambió de "${compra.estado}" a "${updates.estado}"`,
+        '🧾'
+      );
+    }
 
     res.json({ success: true, message: 'Compra actualizada exitosamente' });
   } catch (error) {
@@ -238,6 +311,17 @@ export function cancelarCompra(req, res) {
     `);
 
     stmt.run(motivo, userId, id);
+
+    // Notificar al solicitante de la compra si fue cancelada por alguien más
+    if (compra.solicitante_id !== userId) {
+      crearNotificacion(
+        compra.solicitante_id,
+        'warning',
+        'Compra cancelada',
+        `Tu compra #${compra.id} (${compra.proveedor}) ha sido cancelada. Motivo: ${motivo}`,
+        '❌'
+      );
+    }
 
     res.json({ success: true, message: 'Compra cancelada exitosamente' });
   } catch (error) {

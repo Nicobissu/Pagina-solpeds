@@ -4,6 +4,7 @@ import {
   getPedidoById,
   createPedido,
   updatePedido,
+  updatePedidoUsuario,
   deletePedido,
   addComentario,
   cancelarPedido,
@@ -23,6 +24,7 @@ router.get('/cancelados/lista', getPedidosCancelados);
 router.post('/', upload.array('imagenes', 10), createPedido); // Permitir hasta 10 imágenes
 router.put('/:id/cancelar', cancelarPedido);
 router.put('/:id/validar', isAdminOrValidador, validarPedido);
+router.put('/:id/editar-usuario', upload.array('imagenes', 10), updatePedidoUsuario); // Editar pedido por usuario
 router.post('/:id/comentarios', addComentario);
 router.get('/:id', getPedidoById);
 router.put('/:id', updatePedido);

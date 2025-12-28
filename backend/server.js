@@ -4,6 +4,7 @@ import dotenv from 'dotenv';
 import { fileURLToPath } from 'url';
 import { dirname, join } from 'path';
 import { initDatabase } from './config/database.js';
+import { limpiarPedidosCancelados } from './controllers/pedidosController.js';
 
 // Importar rutas
 import authRoutes from './routes/auth.js';
@@ -98,6 +99,25 @@ app.listen(PORT, () => {
 ║                                              ║
 ╚══════════════════════════════════════════════╝
   `);
+
+  // Iniciar limpieza automática de pedidos cancelados
+  iniciarLimpiezaAutomatica();
 });
+
+// Función para programar la limpieza automática de pedidos cancelados
+function iniciarLimpiezaAutomatica() {
+  // Ejecutar limpieza inmediatamente al iniciar
+  console.log('🔄 Ejecutando limpieza inicial de pedidos cancelados...');
+  limpiarPedidosCancelados();
+
+  // Programar limpieza cada hora (3600000 ms)
+  const intervaloLimpieza = 60 * 60 * 1000; // 1 hora
+  setInterval(() => {
+    console.log('🔄 Ejecutando limpieza programada de pedidos cancelados...');
+    limpiarPedidosCancelados();
+  }, intervaloLimpieza);
+
+  console.log(`✅ Limpieza automática programada cada ${intervaloLimpieza / 1000 / 60} minutos`);
+}
 
 export default app;

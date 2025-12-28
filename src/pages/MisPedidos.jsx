@@ -18,6 +18,19 @@ function MisPedidos() {
   const [pedidoDetalle, setPedidoDetalle] = useState(null)
   const [modalDetalle, setModalDetalle] = useState(false)
 
+  // Estados para edición
+  const [modalEditar, setModalEditar] = useState(false)
+  const [pedidoAEditar, setPedidoAEditar] = useState(null)
+  const [productosEditados, setProductosEditados] = useState([])
+  const [urgenteEditado, setUrgenteEditado] = useState(false)
+  const [imagenesNuevas, setImagenesNuevas] = useState([])
+
+  // Estados para comentarios
+  const [modalComentarios, setModalComentarios] = useState(false)
+  const [pedidoComentarios, setPedidoComentarios] = useState(null)
+  const [nuevoComentario, setNuevoComentario] = useState('')
+  const [enviandoComentario, setEnviandoComentario] = useState(false)
+
   useEffect(() => {
     cargarDatos()
   }, [user, vista])
@@ -43,6 +56,121 @@ function MisPedidos() {
     setPedidoACancelar(pedido)
     setMotivoCancelacion('')
     setModalCancelar(true)
+  }
+
+  const abrirModalEditar = (pedido) => {
+    // Verificar si el pedido puede editarse
+    const estadosEditables = ['Registrado', 'En Proceso', 'Pendiente Foto']
+    if (!estadosEditables.includes(pedido.estado)) {
+      alert(`No se puede editar un pedido en estado "${pedido.estado}". Solo se pueden editar pedidos en: ${estadosEditables.join(', ')}`)
+      return
+    }
+
+    if (pedido.validado) {
+      alert('No se puede editar un pedido validado')
+      return
+    }
+
+    setPedidoAEditar(pedido)
+    try {
+      const productos = JSON.parse(pedido.descripcion)
+      setProductosEditados(productos)
+    } catch (e) {
+      setProductosEditados([])
+    }
+    setUrgenteEditado(pedido.urgente)
+    setImagenesNuevas([])
+    setModalEditar(true)
+  }
+
+  const agregarProducto = () => {
+    setProductosEditados([...productosEditados, { nombre: '', cantidad: '', unidad: 'pza', descripcion: '' }])
+  }
+
+  const eliminarProducto = (index) => {
+    setProductosEditados(productosEditados.filter((_, i) => i !== index))
+  }
+
+  const actualizarProducto = (index, campo, valor) => {
+    const nuevosProductos = [...productosEditados]
+    nuevosProductos[index][campo] = valor
+    setProductosEditados(nuevosProductos)
+  }
+
+  const confirmarEdicion = async () => {
+    // Validar que haya al menos un producto
+    if (productosEditados.length === 0) {
+      alert('Debes agregar al menos un producto')
+      return
+    }
+
+    // Validar que todos los productos tengan nombre y cantidad
+    const productosValidos = productosEditados.every(p => p.nombre.trim() && p.cantidad)
+    if (!productosValidos) {
+      alert('Todos los productos deben tener nombre y cantidad')
+      return
+    }
+
+    try {
+      const formData = new FormData()
+      formData.append('descripcion', JSON.stringify(productosEditados))
+      formData.append('urgente', urgenteEditado)
+
+      // Agregar nuevas imágenes
+      imagenesNuevas.forEach((imagen) => {
+        formData.append('imagenes', imagen)
+      })
+
+      await pedidosAPI.updateUsuario(pedidoAEditar.id, formData)
+      setModalEditar(false)
+      setPedidoAEditar(null)
+      setProductosEditados([])
+      setImagenesNuevas([])
+      cargarDatos()
+      alert('Pedido actualizado exitosamente')
+    } catch (error) {
+      console.error('Error al actualizar pedido:', error)
+      alert('Error al actualizar el pedido: ' + error.message)
+    }
+  }
+
+  const abrirModalComentarios = (pedido) => {
+    setPedidoComentarios(pedido)
+    setNuevoComentario('')
+    setModalComentarios(true)
+  }
+
+  const enviarComentario = async () => {
+    if (!nuevoComentario.trim()) {
+      alert('Escribe un comentario')
+      return
+    }
+
+    try {
+      setEnviandoComentario(true)
+      const response = await pedidosAPI.addComentario(pedidoComentarios.id, nuevoComentario)
+
+      // Actualizar el pedido con el nuevo comentario
+      const pedidoActualizado = {
+        ...pedidoComentarios,
+        comentarios: [...(pedidoComentarios.comentarios || []), response.comentario]
+      }
+      setPedidoComentarios(pedidoActualizado)
+
+      // Actualizar en la lista
+      if (vista === 'activos') {
+        setMisPedidos(misPedidos.map(p => p.id === pedidoActualizado.id ? pedidoActualizado : p))
+      } else {
+        setPedidosCancelados(pedidosCancelados.map(p => p.id === pedidoActualizado.id ? pedidoActualizado : p))
+      }
+
+      setNuevoComentario('')
+    } catch (error) {
+      console.error('Error al agregar comentario:', error)
+      alert('Error al agregar comentario: ' + error.message)
+    } finally {
+      setEnviandoComentario(false)
+    }
   }
 
   const confirmarCancelacion = async () => {
@@ -254,14 +382,6 @@ function MisPedidos() {
                     </div>
                   )}
 
-                  {pedido.comentarios && pedido.comentarios.length > 0 && (
-                    <div className="pedido-comments">
-                      {pedido.comentarios.map((comentario, idx) => (
-                        <p key={idx} className="comment">{comentario}</p>
-                      ))}
-                    </div>
-                  )}
-
                   {pedido.solicitante && (
                     <div className="pedido-solicitante">
                       <span>{pedido.solicitante.avatar} {pedido.solicitante.nombre}</span>
@@ -270,6 +390,22 @@ function MisPedidos() {
                 </div>
                 {!pedido.cancelado && (
                   <div className="pedido-actions">
+                    <button
+                      className="btn-comentar"
+                      onClick={() => abrirModalComentarios(pedido)}
+                      title="Ver/Agregar comentarios"
+                    >
+                      💬
+                    </button>
+                    {['Registrado', 'En Proceso', 'Pendiente Foto'].includes(pedido.estado) && !pedido.validado && (
+                      <button
+                        className="btn-editar"
+                        onClick={() => abrirModalEditar(pedido)}
+                        title="Editar pedido"
+                      >
+                        ✏️
+                      </button>
+                    )}
                     <button
                       className="btn-cancelar"
                       onClick={() => abrirModalCancelar(pedido)}
@@ -358,6 +494,167 @@ function MisPedidos() {
               <div className="info-row motivo">
                 <strong>Motivo:</strong>
                 <p>{pedidoDetalle.motivo_cancelacion}</p>
+              </div>
+            </div>
+          </Modal>
+        )}
+
+        {/* Modal para editar pedido */}
+        {modalEditar && pedidoAEditar && (
+          <Modal title="Editar Pedido" onClose={() => setModalEditar(false)}>
+            <div className="modal-form">
+              <div className="pedido-info-editar">
+                <p><strong>Centro de Costo:</strong> {pedidoAEditar.centro_costo}</p>
+                <p><strong>Estado:</strong> {pedidoAEditar.estado}</p>
+              </div>
+
+              <div className="form-group">
+                <label>Productos *</label>
+                {productosEditados.map((producto, index) => (
+                  <div key={index} className="producto-row">
+                    <input
+                      type="text"
+                      placeholder="Nombre del producto"
+                      value={producto.nombre}
+                      onChange={(e) => actualizarProducto(index, 'nombre', e.target.value)}
+                      required
+                    />
+                    <input
+                      type="number"
+                      placeholder="Cantidad"
+                      value={producto.cantidad}
+                      onChange={(e) => actualizarProducto(index, 'cantidad', e.target.value)}
+                      required
+                      style={{ width: '100px' }}
+                    />
+                    <select
+                      value={producto.unidad}
+                      onChange={(e) => actualizarProducto(index, 'unidad', e.target.value)}
+                      style={{ width: '100px' }}
+                    >
+                      <option value="pza">pza</option>
+                      <option value="kg">kg</option>
+                      <option value="m">m</option>
+                      <option value="lt">lt</option>
+                      <option value="caja">caja</option>
+                    </select>
+                    <input
+                      type="text"
+                      placeholder="Descripción"
+                      value={producto.descripcion}
+                      onChange={(e) => actualizarProducto(index, 'descripcion', e.target.value)}
+                    />
+                    <button
+                      type="button"
+                      onClick={() => eliminarProducto(index)}
+                      className="btn-eliminar-producto"
+                    >
+                      ❌
+                    </button>
+                  </div>
+                ))}
+                <button type="button" onClick={agregarProducto} className="btn-agregar-producto">
+                  + Agregar Producto
+                </button>
+              </div>
+
+              <div className="form-group">
+                <label htmlFor="imagenes-nuevas">Agregar Imágenes (máx. 10)</label>
+                <input
+                  type="file"
+                  id="imagenes-nuevas"
+                  accept="image/*"
+                  multiple
+                  onChange={(e) => {
+                    const files = Array.from(e.target.files).slice(0, 10)
+                    setImagenesNuevas(files)
+                  }}
+                />
+                {imagenesNuevas.length > 0 && (
+                  <p className="imagenes-info">{imagenesNuevas.length} imagen(es) seleccionada(s)</p>
+                )}
+              </div>
+
+              <div className="form-group checkbox-group">
+                <label>
+                  <input
+                    type="checkbox"
+                    checked={urgenteEditado}
+                    onChange={(e) => setUrgenteEditado(e.target.checked)}
+                  />
+                  Marcar como urgente
+                </label>
+              </div>
+
+              <div className="modal-actions">
+                <button
+                  type="button"
+                  className="btn-secondary"
+                  onClick={() => setModalEditar(false)}
+                >
+                  Cancelar
+                </button>
+                <button
+                  type="button"
+                  className="btn-primary"
+                  onClick={confirmarEdicion}
+                >
+                  Guardar Cambios
+                </button>
+              </div>
+            </div>
+          </Modal>
+        )}
+
+        {/* Modal de comentarios */}
+        {modalComentarios && pedidoComentarios && (
+          <Modal title="Comentarios del Pedido" onClose={() => setModalComentarios(false)}>
+            <div className="modal-comentarios">
+              <div className="pedido-info-comentarios">
+                <p><strong>Pedido:</strong> #{pedidoComentarios.id} - {pedidoComentarios.centro_costo}</p>
+                <p><strong>Estado:</strong> {pedidoComentarios.estado}</p>
+              </div>
+
+              <div className="comentarios-lista">
+                {pedidoComentarios.comentarios && pedidoComentarios.comentarios.length > 0 ? (
+                  pedidoComentarios.comentarios.map((comentario, idx) => (
+                    <div key={idx} className="comentario-item">
+                      <div className="comentario-header">
+                        <span className="comentario-usuario">
+                          {comentario.usuario.avatar} {comentario.usuario.nombre}
+                          {comentario.usuario.rol === 'admin' && <span className="badge-admin"> Admin</span>}
+                        </span>
+                        <span className="comentario-fecha">
+                          {new Date(comentario.created_at).toLocaleString('es-ES', {
+                            day: '2-digit',
+                            month: 'short',
+                            hour: '2-digit',
+                            minute: '2-digit'
+                          })}
+                        </span>
+                      </div>
+                      <div className="comentario-texto">{comentario.comentario}</div>
+                    </div>
+                  ))
+                ) : (
+                  <p className="sin-comentarios">No hay comentarios aún</p>
+                )}
+              </div>
+
+              <div className="agregar-comentario">
+                <textarea
+                  placeholder="Escribe tu comentario..."
+                  value={nuevoComentario}
+                  onChange={(e) => setNuevoComentario(e.target.value)}
+                  rows="3"
+                />
+                <button
+                  onClick={enviarComentario}
+                  disabled={enviandoComentario}
+                  className="btn-primary"
+                >
+                  {enviandoComentario ? 'Enviando...' : 'Enviar Comentario'}
+                </button>
               </div>
             </div>
           </Modal>

@@ -1,14 +1,33 @@
-import { useState } from 'react'
-import { notificaciones } from '../data/mockData'
+import { useState, useEffect } from 'react'
+import { notificacionesAPI } from '../services/api'
 import Layout from '../components/Layout'
 import './Notificaciones.css'
 
 function Notificaciones() {
   const [filtro, setFiltro] = useState('todas')
+  const [notificaciones, setNotificaciones] = useState([])
+  const [cargando, setCargando] = useState(true)
+
+  useEffect(() => {
+    cargarNotificaciones()
+  }, [])
+
+  const cargarNotificaciones = async () => {
+    try {
+      setCargando(true)
+      const data = await notificacionesAPI.getAll()
+      setNotificaciones(data)
+    } catch (error) {
+      console.error('Error al cargar notificaciones:', error)
+      alert('Error al cargar las notificaciones')
+    } finally {
+      setCargando(false)
+    }
+  }
 
   const notificacionesFiltradas = notificaciones.filter(notif => {
     if (filtro === 'no-leidas') return !notif.leida
-    if (filtro === 'archivadas') return false // No hay archivadas en mock data
+    if (filtro === 'archivadas') return false
     return true
   })
 
@@ -38,6 +57,34 @@ function Notificaciones() {
     return map[tipo] || 'notif-icon-info'
   }
 
+  const marcarComoLeida = async (id) => {
+    try {
+      await notificacionesAPI.marcarLeida(id)
+      await cargarNotificaciones()
+    } catch (error) {
+      console.error('Error al marcar notificación:', error)
+    }
+  }
+
+  const marcarTodasLeidas = async () => {
+    try {
+      await notificacionesAPI.marcarTodasLeidas()
+      await cargarNotificaciones()
+    } catch (error) {
+      console.error('Error al marcar todas como leídas:', error)
+      alert('Error al marcar las notificaciones como leídas')
+    }
+  }
+
+  const eliminarNotificacion = async (id) => {
+    try {
+      await notificacionesAPI.delete(id)
+      await cargarNotificaciones()
+    } catch (error) {
+      console.error('Error al eliminar notificación:', error)
+    }
+  }
+
   return (
     <Layout>
       <div className="notificaciones-page">
@@ -46,7 +93,7 @@ function Notificaciones() {
             <h1>Notificaciones</h1>
             <p>Mantente al tanto de tus pedidos y actualizaciones administrativas.</p>
           </div>
-          <button className="btn-marcar-leidas">✓ Marcar todas como leídas</button>
+          <button className="btn-marcar-leidas" onClick={marcarTodasLeidas}>✓ Marcar todas como leídas</button>
         </div>
 
         <div className="tabs">
@@ -74,11 +121,17 @@ function Notificaciones() {
         </div>
 
         <div className="notificaciones-container">
+          {cargando ? (
+            <div className="empty-state">
+              <p>Cargando notificaciones...</p>
+            </div>
+          ) : (
+            <>
           {notificacionesNuevas.length > 0 && (
             <div className="notif-section">
               <h3 className="section-title">NUEVAS</h3>
               {notificacionesNuevas.map(notif => (
-                <div key={notif.id} className={`notif-card ${notif.leida ? '' : 'no-leida'}`}>
+                <div key={notif.id} className={`notif-card ${notif.leida ? '' : 'no-leida'}`} onClick={() => marcarComoLeida(notif.id)}>
                   <div className="notif-dot"></div>
                   <div className={`notif-icon ${getNotifIconClass(notif.tipo)}`}>
                     {notif.icono}
@@ -88,7 +141,16 @@ function Notificaciones() {
                     <p className="notif-mensaje">{notif.mensaje}</p>
                   </div>
                   <div className="notif-time">{formatearTiempo(notif.fecha)}</div>
-                  <button className="btn-arrow-notif">→</button>
+                  <button
+                    className="btn-delete-notif"
+                    onClick={(e) => {
+                      e.stopPropagation()
+                      eliminarNotificacion(notif.id)
+                    }}
+                    title="Eliminar notificación"
+                  >
+                    ×
+                  </button>
                 </div>
               ))}
             </div>
@@ -107,7 +169,16 @@ function Notificaciones() {
                     <p className="notif-mensaje">{notif.mensaje}</p>
                   </div>
                   <div className="notif-time">{formatearTiempo(notif.fecha)}</div>
-                  <button className="btn-arrow-notif">→</button>
+                  <button
+                    className="btn-delete-notif"
+                    onClick={(e) => {
+                      e.stopPropagation()
+                      eliminarNotificacion(notif.id)
+                    }}
+                    title="Eliminar notificación"
+                  >
+                    ×
+                  </button>
                 </div>
               ))}
             </div>
@@ -117,6 +188,8 @@ function Notificaciones() {
             <div className="empty-state">
               <p>No tienes notificaciones {filtro === 'no-leidas' ? 'sin leer' : filtro === 'archivadas' ? 'archivadas' : ''}.</p>
             </div>
+          )}
+            </>
           )}
         </div>
 

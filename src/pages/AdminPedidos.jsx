@@ -16,12 +16,17 @@ function AdminPedidos() {
   const [loading, setLoading] = useState(true)
   const [itemSeleccionado, setItemSeleccionado] = useState(null)
   const [showModal, setShowModal] = useState(false)
-  const [comentario, setComentario] = useState('')
   const [modalCancelar, setModalCancelar] = useState(false)
   const [pedidoACancelar, setPedidoACancelar] = useState(null)
   const [motivoCancelacion, setMotivoCancelacion] = useState('')
   const [modalDetalle, setModalDetalle] = useState(false)
   const [pedidoDetalle, setPedidoDetalle] = useState(null)
+
+  // Estados para modal de chat
+  const [modalChat, setModalChat] = useState(false)
+  const [pedidoChat, setPedidoChat] = useState(null)
+  const [nuevoComentario, setNuevoComentario] = useState('')
+  const [enviandoComentario, setEnviandoComentario] = useState(false)
 
   useEffect(() => {
     cargarDatos()
@@ -176,31 +181,52 @@ function AdminPedidos() {
     }
   }
 
-  const handleEnviarComentario = async () => {
-    if (!itemSeleccionado || !comentario.trim()) {
+  const abrirModalChat = (pedido) => {
+    setPedidoChat(pedido)
+    setNuevoComentario('')
+    setModalChat(true)
+  }
+
+  const enviarComentarioChat = async () => {
+    if (!pedidoChat || !nuevoComentario.trim()) {
       alert('Debes escribir un comentario')
       return
     }
 
     try {
-      console.log('Agregando comentario al pedido:', itemSeleccionado.id)
-      await pedidosAPI.addComentario(itemSeleccionado.id, comentario)
+      setEnviandoComentario(true)
+      console.log('Agregando comentario al pedido:', pedidoChat.id)
+      const response = await pedidosAPI.addComentario(pedidoChat.id, nuevoComentario)
+
+      // Actualizar el pedido con el nuevo comentario
+      const pedidoActualizado = {
+        ...pedidoChat,
+        comentarios: [...(pedidoChat.comentarios || []), response.comentario]
+      }
+      setPedidoChat(pedidoActualizado)
+
+      // Actualizar en la lista
+      if (vista === 'activos') {
+        setPedidos(pedidos.map(p => p.id === pedidoActualizado.id ? pedidoActualizado : p))
+      } else {
+        setPedidosCancelados(pedidosCancelados.map(p => p.id === pedidoActualizado.id ? pedidoActualizado : p))
+      }
 
       console.log('Creando notificación de comentario')
       await notificacionesAPI.create({
-        usuario_id: itemSeleccionado.solicitante.id,
+        usuario_id: pedidoChat.solicitante.id,
         tipo: 'warning',
-        titulo: `Comentario en Pedido #${itemSeleccionado.id}`,
-        mensaje: comentario,
+        titulo: `Comentario en Pedido #${pedidoChat.id}`,
+        mensaje: nuevoComentario,
         icono: '💬'
       })
 
-      await cargarPedidos()
-      setComentario('')
-      alert('Comentario enviado exitosamente')
+      setNuevoComentario('')
     } catch (error) {
       console.error('Error completo:', error)
       alert(`Error al enviar el comentario: ${error.message}`)
+    } finally {
+      setEnviandoComentario(false)
     }
   }
 
@@ -371,7 +397,6 @@ function AdminPedidos() {
                 <th>FECHA</th>
                 <th>OBRA</th>
                 <th>CLIENTE</th>
-                <th>MONTO</th>
                 <th>SOLICITANTE</th>
                 {vista === 'cancelados' && <th>CANCELADO POR</th>}
                 <th>ESTADO</th>
@@ -382,10 +407,16 @@ function AdminPedidos() {
               {pedidosFiltrados.map(pedido => (
                 <tr key={pedido.id} className={pedido.cancelado ? 'row-cancelado' : ''}>
                   <td>#{pedido.id}</td>
-                  <td>{new Date(pedido.cancelado ? pedido.fecha_cancelacion : pedido.fecha).toLocaleDateString('es-ES', { day: '2-digit', month: 'short' })}</td>
+                  <td>
+                    {new Date(pedido.cancelado ? pedido.fecha_cancelacion : pedido.fecha).toLocaleString('es-ES', {
+                      day: '2-digit',
+                      month: 'short',
+                      hour: '2-digit',
+                      minute: '2-digit'
+                    })}
+                  </td>
                   <td><strong>{pedido.obra}</strong></td>
                   <td>{pedido.cliente}</td>
-                  <td>{pedido.monto ? `$${pedido.monto.toFixed(2)}` : '---'}</td>
                   <td>
                     <div className="solicitante-cell">
                       <span className="solicitante-avatar">{pedido.solicitante.avatar}</span>
@@ -417,6 +448,9 @@ function AdminPedidos() {
                   </td>
                   <td>
                     <div className="acciones-cell">
+                      <button className="btn-action" onClick={() => abrirModalChat(pedido)} title="Ver chat / comentarios">
+                        💬
+                      </button>
                       <button className="btn-action" onClick={() => pedido.cancelado ? verDetalleCancelacion(pedido) : handleItemClick(pedido)} title={pedido.cancelado ? "Ver detalle de cancelación" : "Ver detalle y gestionar"}>
                         👁️
                       </button>
@@ -491,37 +525,47 @@ function AdminPedidos() {
             </div>
 
             {/* Visor de Imágenes */}
-            {itemSeleccionado.imagenes && itemSeleccionado.imagenes.length > 0 && (
-              <div className="info-section" style={{ marginTop: '20px' }}>
-                <h3>Imágenes del Pedido ({itemSeleccionado.imagenes.length})</h3>
-                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(150px, 1fr))', gap: '10px', marginTop: '10px' }}>
-                  {itemSeleccionado.imagenes.map((imagen, index) => {
-                    const imageUrl = `http://localhost:3001${imagen}`;
-                    return (
-                      <div key={index} style={{ position: 'relative', paddingBottom: '100%', backgroundColor: '#f5f5f5', borderRadius: '8px', overflow: 'hidden', cursor: 'pointer', border: '2px solid #ddd' }}>
-                        <img
-                          src={imageUrl}
-                          alt={`Imagen ${index + 1}`}
-                          style={{ position: 'absolute', top: 0, left: 0, width: '100%', height: '100%', objectFit: 'cover' }}
-                          onClick={() => window.open(imageUrl, '_blank')}
-                          title="Click para ver en tamaño completo"
-                        />
-                      </div>
-                    );
-                  })}
-                </div>
-                <p style={{ fontSize: '0.85em', color: '#666', marginTop: '10px' }}>
-                  💡 Click en cualquier imagen para verla en tamaño completo
-                </p>
-              </div>
-            )}
+            {(() => {
+              const imagenes = Array.isArray(itemSeleccionado.imagenes) ? itemSeleccionado.imagenes : [];
 
-            {itemSeleccionado.imagenes && itemSeleccionado.imagenes.length === 0 && (
-              <div className="info-section" style={{ marginTop: '20px' }}>
-                <h3>Imágenes del Pedido</h3>
-                <p style={{ color: '#999', fontStyle: 'italic', marginTop: '10px' }}>No hay imágenes adjuntas a este pedido</p>
-              </div>
-            )}
+              if (imagenes.length > 0) {
+                return (
+                  <div className="info-section" style={{ marginTop: '20px' }}>
+                    <h3>Imágenes del Pedido ({imagenes.length})</h3>
+                    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(150px, 1fr))', gap: '10px', marginTop: '10px' }}>
+                      {imagenes.map((imagen, index) => {
+                        const imageUrl = `http://localhost:3001${imagen}`;
+                        return (
+                          <div key={index} style={{ position: 'relative', paddingBottom: '100%', backgroundColor: '#f5f5f5', borderRadius: '8px', overflow: 'hidden', cursor: 'pointer', border: '2px solid #ddd' }}>
+                            <img
+                              src={imageUrl}
+                              alt={`Imagen ${index + 1}`}
+                              style={{ position: 'absolute', top: 0, left: 0, width: '100%', height: '100%', objectFit: 'cover' }}
+                              onClick={() => window.open(imageUrl, '_blank')}
+                              title="Click para ver en tamaño completo"
+                              onError={(e) => {
+                                console.error('Error cargando imagen:', imageUrl);
+                                e.target.style.display = 'none';
+                              }}
+                            />
+                          </div>
+                        );
+                      })}
+                    </div>
+                    <p style={{ fontSize: '0.85em', color: '#666', marginTop: '10px' }}>
+                      💡 Click en cualquier imagen para verla en tamaño completo
+                    </p>
+                  </div>
+                );
+              } else {
+                return (
+                  <div className="info-section" style={{ marginTop: '20px' }}>
+                    <h3>Imágenes del Pedido</h3>
+                    <p style={{ color: '#999', fontStyle: 'italic', marginTop: '10px' }}>No hay imágenes adjuntas a este pedido</p>
+                  </div>
+                );
+              }
+            })()}
 
             <div className="form-group">
               <h3>Cambiar Estado</h3>
@@ -542,19 +586,6 @@ function AdminPedidos() {
             <div className="form-group">
               <button onClick={handleMarcarIncompleto} className="btn-warning" style={{ width: '100%' }}>
                 ⚠️ Marcar como Incompleto
-              </button>
-            </div>
-
-            <div className="form-group">
-              <h3>Agregar Comentario</h3>
-              <textarea
-                rows="4"
-                placeholder="Escribe un comentario..."
-                value={comentario}
-                onChange={(e) => setComentario(e.target.value)}
-              ></textarea>
-              <button onClick={handleEnviarComentario} className="btn-primary" disabled={!comentario.trim()} style={{ marginTop: '10px' }}>
-                💬 Enviar Comentario
               </button>
             </div>
 
@@ -637,6 +668,61 @@ function AdminPedidos() {
             <div className="info-row motivo">
               <strong>Motivo:</strong>
               <p>{pedidoDetalle.motivo_cancelacion}</p>
+            </div>
+          </div>
+        </Modal>
+      )}
+
+      {/* Modal de chat */}
+      {modalChat && pedidoChat && (
+        <Modal title={`Chat - Pedido #${pedidoChat.id}`} onClose={() => setModalChat(false)}>
+          <div className="modal-chat-admin">
+            <div className="pedido-info-chat">
+              <p><strong>Pedido:</strong> #{pedidoChat.id} - {pedidoChat.centro_costo}</p>
+              <p><strong>Estado:</strong> {pedidoChat.estado}</p>
+              <p><strong>Solicitante:</strong> {pedidoChat.solicitante.avatar} {pedidoChat.solicitante.nombre}</p>
+            </div>
+
+            <div className="chat-mensajes-lista">
+              {pedidoChat.comentarios && pedidoChat.comentarios.length > 0 ? (
+                pedidoChat.comentarios.map((comentario, idx) => (
+                  <div key={idx} className="chat-mensaje-item">
+                    <div className="chat-mensaje-header">
+                      <span className="chat-mensaje-usuario">
+                        {comentario.usuario.avatar} {comentario.usuario.nombre}
+                        {comentario.usuario.rol === 'admin' && <span className="badge-admin-chat"> Admin</span>}
+                      </span>
+                      <span className="chat-mensaje-fecha">
+                        {new Date(comentario.created_at).toLocaleString('es-ES', {
+                          day: '2-digit',
+                          month: 'short',
+                          hour: '2-digit',
+                          minute: '2-digit'
+                        })}
+                      </span>
+                    </div>
+                    <div className="chat-mensaje-texto">{comentario.comentario}</div>
+                  </div>
+                ))
+              ) : (
+                <p className="sin-mensajes">No hay mensajes en este chat</p>
+              )}
+            </div>
+
+            <div className="chat-escribir">
+              <textarea
+                placeholder="Escribe un mensaje..."
+                value={nuevoComentario}
+                onChange={(e) => setNuevoComentario(e.target.value)}
+                rows="3"
+              />
+              <button
+                onClick={enviarComentarioChat}
+                disabled={enviandoComentario}
+                className="btn-primary"
+              >
+                {enviandoComentario ? 'Enviando...' : 'Enviar Mensaje'}
+              </button>
             </div>
           </div>
         </Modal>
