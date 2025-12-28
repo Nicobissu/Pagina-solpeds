@@ -50,8 +50,8 @@ function Dashboard() {
     try {
       setLoading(true)
       const [pedidosData, comprasData] = await Promise.all([
-        pedidosAPI.getAll(user.id, user.role === 'admin'),
-        comprasAPI.getAll(user.id, user.role === 'admin')
+        pedidosAPI.getAll(user.id, user.role === 'admin' || user.role === 'supervisor'),
+        comprasAPI.getAll(user.id, user.role === 'admin' || user.role === 'supervisor')
       ])
       setMisPedidos(pedidosData)
       setMisCompras(comprasData)

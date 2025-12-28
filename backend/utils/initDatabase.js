@@ -1,10 +1,12 @@
 import bcrypt from 'bcryptjs';
 import db, { initDatabase } from '../config/database.js';
 
-// Inicializar base de datos
-initDatabase();
-
 console.log('🔧 Poblando base de datos con datos de prueba...\n');
+
+// Inicializar base de datos
+await initDatabase();
+
+console.log('✅ Base de datos inicializada\n');
 
 // Limpiar datos existentes
 db.exec('DELETE FROM notificaciones');
@@ -20,7 +22,9 @@ console.log('✅ Datos anteriores eliminados\n');
 
 // Crear usuarios
 const usuarios = [
+  { username: 'supervisor', password: 'supervisor', nombre: 'Supervisor Supremo', rol: 'supervisor' },
   { username: 'admin', password: 'admin', nombre: 'Roberto Gómez', rol: 'admin' },
+  { username: 'validador', password: 'validador', nombre: 'María Valdez', rol: 'validador' },
   { username: 'juan', password: 'juan', nombre: 'Juan P.', rol: 'user' },
   { username: 'luis', password: 'luis', nombre: 'Luis M.', rol: 'user' },
   { username: 'carlos', password: 'carlos', nombre: 'Carlos R.', rol: 'user' },
@@ -304,7 +308,9 @@ console.log('║                                              ║');
 console.log('║   ✅ Base de datos inicializada              ║');
 console.log('║                                              ║');
 console.log('║   Usuarios de prueba:                        ║');
+console.log('║   • supervisor / supervisor (SUPERVISOR)     ║');
 console.log('║   • admin / admin (Administrador)            ║');
+console.log('║   • validador / validador (Validador)        ║');
 console.log('║   • juan / juan (Usuario)                    ║');
 console.log('║   • luis / luis (Usuario)                    ║');
 console.log('║   • carlos / carlos (Usuario)                ║');
@@ -313,4 +319,5 @@ console.log('║   • sofia / sofia (Usuario)                  ║');
 console.log('║                                              ║');
 console.log('╚══════════════════════════════════════════════╝');
 
-db.close();
+// db.close() no es necesario con sql.js - se guarda automáticamente
+process.exit(0);

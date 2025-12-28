@@ -19,21 +19,21 @@ export function authenticateToken(req, res, next) {
 }
 
 export function isAdmin(req, res, next) {
-  if (req.user.rol !== 'admin') {
+  if (req.user.rol !== 'admin' && req.user.rol !== 'supervisor') {
     return res.status(403).json({ error: 'Acceso denegado. Se requieren permisos de administrador' });
   }
   next();
 }
 
 export function isValidador(req, res, next) {
-  if (req.user.rol !== 'validador' && req.user.rol !== 'admin') {
+  if (req.user.rol !== 'validador' && req.user.rol !== 'admin' && req.user.rol !== 'supervisor') {
     return res.status(403).json({ error: 'Acceso denegado. Se requieren permisos de validador' });
   }
   next();
 }
 
 export function isAdminOrValidador(req, res, next) {
-  if (req.user.rol !== 'admin' && req.user.rol !== 'validador') {
+  if (req.user.rol !== 'admin' && req.user.rol !== 'validador' && req.user.rol !== 'supervisor') {
     return res.status(403).json({ error: 'Acceso denegado. Se requieren permisos de admin o validador' });
   }
   next();

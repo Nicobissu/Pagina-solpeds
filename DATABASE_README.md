@@ -85,14 +85,25 @@ npm run dev
 
 La base de datos viene con estos usuarios pre-configurados:
 
-| Usuario | Contraseña | Rol           |
-|---------|------------|---------------|
-| admin   | admin      | Administrador |
-| juan    | juan       | Usuario       |
-| luis    | luis       | Usuario       |
-| carlos  | carlos     | Usuario       |
-| ana     | ana        | Usuario       |
-| sofia   | sofia      | Usuario       |
+| Usuario    | Contraseña | Rol               | Permisos                                                    |
+|------------|------------|-------------------|-------------------------------------------------------------|
+| supervisor | supervisor | **Supervisor**    | **Control total: validar + administrar + hacer pedidos**    |
+| admin      | admin      | Administrador     | Panel de administración completo                            |
+| validador  | validador  | Validador         | Validar y rechazar pedidos                                  |
+| juan       | juan       | Usuario           | Crear pedidos y compras                                     |
+| luis       | luis       | Usuario           | Crear pedidos y compras                                     |
+| carlos     | carlos     | Usuario           | Crear pedidos y compras                                     |
+| ana        | ana        | Usuario           | Crear pedidos y compras                                     |
+| sofia      | sofia      | Usuario           | Crear pedidos y compras                                     |
+
+### 👑 Cuenta Supervisor Supremo
+
+El rol **supervisor** tiene acceso completo a todo el sistema:
+- ✅ Puede validar pedidos (como validador)
+- ✅ Tiene acceso al panel de administración completo (como admin)
+- ✅ Puede crear sus propios pedidos y compras (como usuario)
+- ✅ Ve todos los chats y comentarios
+- ✅ Puede intervenir en cualquier momento
 
 ---
 

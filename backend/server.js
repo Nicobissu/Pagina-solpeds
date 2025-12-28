@@ -12,6 +12,7 @@ import pedidosRoutes from './routes/pedidos.js';
 import comprasRoutes from './routes/compras.js';
 import notificacionesRoutes from './routes/notificaciones.js';
 import centrosCostoRoutes from './routes/centrosCosto.js';
+import usuariosRoutes from './routes/usuarios.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
@@ -64,6 +65,7 @@ app.use('/api/pedidos', pedidosRoutes);
 app.use('/api/compras', comprasRoutes);
 app.use('/api/notificaciones', notificacionesRoutes);
 app.use('/api/centros-costo', centrosCostoRoutes);
+app.use('/api/usuarios', usuariosRoutes);
 
 // Ruta de prueba
 app.get('/api/health', (req, res) => {

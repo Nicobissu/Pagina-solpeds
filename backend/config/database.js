@@ -313,6 +313,7 @@ function initDefaultUsers() {
     console.log('🔧 Creando usuarios de prueba...');
 
     const usuarios = [
+      { username: 'supervisor', password: 'supervisor', nombre: 'Supervisor Supremo', rol: 'supervisor' },
       { username: 'admin', password: 'admin', nombre: 'Roberto Gómez', rol: 'admin' },
       { username: 'validador', password: 'validador', nombre: 'María Valdez', rol: 'validador' },
       { username: 'juan', password: 'juan', nombre: 'Juan P.', rol: 'user' },
@@ -335,6 +336,7 @@ function initDefaultUsers() {
     console.log('');
     console.log('╔══════════════════════════════════════════════╗');
     console.log('║   Usuarios de prueba disponibles:           ║');
+    console.log('║   • supervisor / supervisor (SUPERVISOR)     ║');
     console.log('║   • admin / admin (Administrador)            ║');
     console.log('║   • validador / validador (Validador)        ║');
     console.log('║   • juan / juan (Usuario)                    ║');

@@ -18,7 +18,10 @@
       "Bash(sqlite3:*)",
       "Bash(npm start)",
       "Bash(node test-limpieza.js:*)",
-      "Bash(node migrar-pedidos-cancelados.js:*)"
+      "Bash(node migrar-pedidos-cancelados.js:*)",
+      "Bash(node add-supervisor.js:*)",
+      "Bash(npm run init-db:*)",
+      "Bash(start /B cmd /c \"npm run dev > backend.log 2>&1\")"
     ]
   }
 }

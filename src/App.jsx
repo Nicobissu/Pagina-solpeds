@@ -13,6 +13,7 @@ import AdminReportes from './pages/AdminReportes'
 import AdminCentrosCosto from './pages/AdminCentrosCosto'
 import AdminConfiguracion from './pages/AdminConfiguracion'
 import ValidadorPanel from './pages/ValidadorPanel'
+import SupervisorPanel from './pages/SupervisorPanel'
 import './App.css'
 
 function PrivateRoute({ children, adminOnly = false, validadorOnly = false }) {
@@ -22,11 +23,11 @@ function PrivateRoute({ children, adminOnly = false, validadorOnly = false }) {
     return <Navigate to="/login" />
   }
 
-  if (adminOnly && user.role !== 'admin') {
+  if (adminOnly && user.role !== 'admin' && user.role !== 'supervisor') {
     return <Navigate to="/" />
   }
 
-  if (validadorOnly && user.role !== 'validador' && user.role !== 'admin') {
+  if (validadorOnly && user.role !== 'validador' && user.role !== 'admin' && user.role !== 'supervisor') {
     return <Navigate to="/" />
   }
 
@@ -51,6 +52,7 @@ function AppRoutes() {
       <Route path="/admin/centros-costo" element={<PrivateRoute adminOnly><AdminCentrosCosto /></PrivateRoute>} />
       <Route path="/admin/configuracion" element={<PrivateRoute adminOnly><AdminConfiguracion /></PrivateRoute>} />
       <Route path="/validador" element={<PrivateRoute validadorOnly><ValidadorPanel /></PrivateRoute>} />
+      <Route path="/supervisor" element={<PrivateRoute validadorOnly><SupervisorPanel /></PrivateRoute>} />
     </Routes>
   )
 }

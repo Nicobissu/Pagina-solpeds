@@ -366,3 +366,53 @@ export const centrosCostoAPI = {
     return handleResponse(response);
   }
 };
+
+// API de usuarios
+export const usuariosAPI = {
+  getAll: async () => {
+    const response = await fetch(`${API_URL}/usuarios`, {
+      headers: getAuthHeaders()
+    });
+    return handleResponse(response);
+  },
+
+  getById: async (id) => {
+    const response = await fetch(`${API_URL}/usuarios/${id}`, {
+      headers: getAuthHeaders()
+    });
+    return handleResponse(response);
+  },
+
+  create: async (userData) => {
+    const response = await fetch(`${API_URL}/usuarios`, {
+      method: 'POST',
+      headers: getAuthHeaders(),
+      body: JSON.stringify(userData)
+    });
+    return handleResponse(response);
+  },
+
+  update: async (id, userData) => {
+    const response = await fetch(`${API_URL}/usuarios/${id}`, {
+      method: 'PUT',
+      headers: getAuthHeaders(),
+      body: JSON.stringify(userData)
+    });
+    return handleResponse(response);
+  },
+
+  delete: async (id) => {
+    const response = await fetch(`${API_URL}/usuarios/${id}`, {
+      method: 'DELETE',
+      headers: getAuthHeaders()
+    });
+    return handleResponse(response);
+  },
+
+  getEstadisticas: async () => {
+    const response = await fetch(`${API_URL}/usuarios/estadisticas`, {
+      headers: getAuthHeaders()
+    });
+    return handleResponse(response);
+  }
+};
