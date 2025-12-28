@@ -31,11 +31,12 @@ export function getNotificaciones(req, res) {
 
 export function createNotificacion(req, res) {
   try {
-    const { usuarioId, tipo, titulo, mensaje, icono } = req.body;
+    const { usuario_id, usuarioId, tipo, titulo, mensaje, icono } = req.body;
+    const userId = usuario_id || usuarioId;
 
-    if (!usuarioId || !tipo || !titulo || !mensaje) {
+    if (!userId || !tipo || !titulo || !mensaje) {
       return res.status(400).json({
-        error: 'Campos requeridos: usuarioId, tipo, titulo, mensaje'
+        error: 'Campos requeridos: usuario_id (o usuarioId), tipo, titulo, mensaje'
       });
     }
 
@@ -44,7 +45,7 @@ export function createNotificacion(req, res) {
       VALUES (?, ?, ?, ?, ?)
     `);
 
-    const result = stmt.run(usuarioId, tipo, titulo, mensaje, icono || null);
+    const result = stmt.run(userId, tipo, titulo, mensaje, icono || null);
 
     res.status(201).json({
       success: true,

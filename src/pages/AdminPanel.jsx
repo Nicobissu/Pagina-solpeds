@@ -56,6 +56,8 @@ function AdminPanel() {
       pasa = item.incompleto || (item.tipo === 'Compra' && !item.ticket)
     } else if (filtroEstado === 'revisados') {
       pasa = item.tipo === 'Pedido' ? item.estado === 'Revisado' : item.estado === 'Subido'
+    } else if (filtroEstado === 'validacion') {
+      pasa = item.tipo === 'Pedido' ? (item.estado === 'Pendiente Validación' || item.estado === 'Validado') : false
     } else if (filtroEstado === 'cerrados') {
       pasa = item.tipo === 'Pedido' ? (item.estado === 'Completado' || item.estado === 'Cerrado') : false
     }
@@ -82,7 +84,10 @@ function AdminPanel() {
       i.tipo === 'Pedido' ? (i.estado === 'Registrado' || i.estado === 'En Proceso') : (i.estado === 'Pendiente')
     ).length,
     urgentes: todosCombinados.filter(i => i.urgente).length,
-    incompletos: todosCombinados.filter(i => i.incompleto || (i.tipo === 'Compra' && !i.ticket)).length
+    incompletos: todosCombinados.filter(i => i.incompleto || (i.tipo === 'Compra' && !i.ticket)).length,
+    validacion: todosCombinados.filter(i =>
+      i.tipo === 'Pedido' ? (i.estado === 'Pendiente Validación' || i.estado === 'Validado') : false
+    ).length
   }
 
   const handleLogout = () => {
@@ -98,6 +103,8 @@ function AdminPanel() {
         'Pendiente Foto': { class: 'badge-orange', icon: '📷' },
         'Revisión Pendiente': { class: 'badge-orange', icon: '⚠️' },
         'Revisado': { class: 'badge-green', icon: '✅' },
+        'Pendiente Validación': { class: 'badge-orange', icon: '⏳' },
+        'Validado': { class: 'badge-green', icon: '✅' },
         'Completado': { class: 'badge-green', icon: '✅' },
         'Cerrado': { class: 'badge-gray', icon: '📦' }
       }
@@ -239,6 +246,10 @@ function AdminPanel() {
             <span className="nav-icon">📊</span>
             <span>Reportes</span>
           </button>
+          <button className="admin-nav-item" onClick={() => navigate('/admin/centros-costo')}>
+            <span className="nav-icon">🏢</span>
+            <span>Centros de Costo</span>
+          </button>
           <button className="admin-nav-item" onClick={() => navigate('/admin/configuracion')}>
             <span className="nav-icon">⚙️</span>
             <span>Configuración</span>
@@ -303,6 +314,13 @@ function AdminPanel() {
             Revisados
           </button>
           <button
+            className={`admin-tab ${filtroEstado === 'validacion' ? 'active' : ''}`}
+            onClick={() => setFiltroEstado('validacion')}
+          >
+            Validación
+            <span className="tab-count">{contadores.validacion}</span>
+          </button>
+          <button
             className={`admin-tab ${filtroEstado === 'cerrados' ? 'active' : ''}`}
             onClick={() => setFiltroEstado('cerrados')}
           >
@@ -331,7 +349,6 @@ function AdminPanel() {
                 <th>TIPO</th>
                 <th>FECHA</th>
                 <th>OBRA</th>
-                <th>DESCRIPCIÓN</th>
                 <th>MONTO/CANT.</th>
                 <th>SOLICITANTE</th>
                 <th>ESTADO</th>
@@ -350,10 +367,6 @@ function AdminPanel() {
                     </td>
                     <td>{new Date(item.fecha).toLocaleDateString('es-ES', { day: '2-digit', month: 'short', year: 'numeric' })}</td>
                     <td><strong>{item.obra || item.cliente || '-'}</strong></td>
-                    <td className="descripcion-cell">
-                      {item.descripcion?.substring(0, 60)}
-                      {item.descripcion?.length > 60 ? '...' : ''}
-                    </td>
                     <td>
                       {item.monto !== null && item.monto !== undefined
                         ? `$${item.monto.toFixed(2)}`

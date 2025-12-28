@@ -10,10 +10,12 @@ import AdminPedidos from './pages/AdminPedidos'
 import AdminCompras from './pages/AdminCompras'
 import AdminUsuarios from './pages/AdminUsuarios'
 import AdminReportes from './pages/AdminReportes'
+import AdminCentrosCosto from './pages/AdminCentrosCosto'
 import AdminConfiguracion from './pages/AdminConfiguracion'
+import ValidadorPanel from './pages/ValidadorPanel'
 import './App.css'
 
-function PrivateRoute({ children, adminOnly = false }) {
+function PrivateRoute({ children, adminOnly = false, validadorOnly = false }) {
   const { user } = useAuth()
 
   if (!user) {
@@ -21,6 +23,10 @@ function PrivateRoute({ children, adminOnly = false }) {
   }
 
   if (adminOnly && user.role !== 'admin') {
+    return <Navigate to="/" />
+  }
+
+  if (validadorOnly && user.role !== 'validador' && user.role !== 'admin') {
     return <Navigate to="/" />
   }
 
@@ -42,7 +48,9 @@ function AppRoutes() {
       <Route path="/admin/compras" element={<PrivateRoute adminOnly><AdminCompras /></PrivateRoute>} />
       <Route path="/admin/usuarios" element={<PrivateRoute adminOnly><AdminUsuarios /></PrivateRoute>} />
       <Route path="/admin/reportes" element={<PrivateRoute adminOnly><AdminReportes /></PrivateRoute>} />
+      <Route path="/admin/centros-costo" element={<PrivateRoute adminOnly><AdminCentrosCosto /></PrivateRoute>} />
       <Route path="/admin/configuracion" element={<PrivateRoute adminOnly><AdminConfiguracion /></PrivateRoute>} />
+      <Route path="/validador" element={<PrivateRoute validadorOnly><ValidadorPanel /></PrivateRoute>} />
     </Routes>
   )
 }

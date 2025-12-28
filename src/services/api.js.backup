@@ -89,19 +89,6 @@ export const pedidosAPI = {
     return handleResponse(response);
   },
 
-  createWithImages: async (formData) => {
-    const token = localStorage.getItem('token');
-    const response = await fetch(`${API_URL}/pedidos`, {
-      method: 'POST',
-      headers: {
-        ...(token && { 'Authorization': `Bearer ${token}` })
-        // NO incluir Content-Type, el navegador lo establece automáticamente con FormData
-      },
-      body: formData
-    });
-    return handleResponse(response);
-  },
-
   update: async (id, updates) => {
     const response = await fetch(`${API_URL}/pedidos/${id}`, {
       method: 'PUT',
@@ -138,24 +125,25 @@ export const pedidosAPI = {
   },
 
   getCancelados: async (userId, isAdmin) => {
+validar: async (id, accion, motivo = '', nuevoEstado = 'En Proceso') => {    const response = await fetch(`${API_URL}/pedidos/${id}/validar`, {      method: 'PUT',      headers: getAuthHeaders(),      body: JSON.stringify({ accion, motivo, nuevoEstado })    });    return handleResponse(response);  }
     const params = new URLSearchParams({
+validar: async (id, accion, motivo = '', nuevoEstado = 'En Proceso') => {    const response = await fetch(`${API_URL}/pedidos/${id}/validar`, {      method: 'PUT',      headers: getAuthHeaders(),      body: JSON.stringify({ accion, motivo, nuevoEstado })    });    return handleResponse(response);  }
       userId,
+validar: async (id, accion, motivo = '', nuevoEstado = 'En Proceso') => {    const response = await fetch(`${API_URL}/pedidos/${id}/validar`, {      method: 'PUT',      headers: getAuthHeaders(),      body: JSON.stringify({ accion, motivo, nuevoEstado })    });    return handleResponse(response);  }
       isAdmin: isAdmin ? 'true' : 'false'
+validar: async (id, accion, motivo = '', nuevoEstado = 'En Proceso') => {    const response = await fetch(`${API_URL}/pedidos/${id}/validar`, {      method: 'PUT',      headers: getAuthHeaders(),      body: JSON.stringify({ accion, motivo, nuevoEstado })    });    return handleResponse(response);  }
     });
+validar: async (id, accion, motivo = '', nuevoEstado = 'En Proceso') => {    const response = await fetch(`${API_URL}/pedidos/${id}/validar`, {      method: 'PUT',      headers: getAuthHeaders(),      body: JSON.stringify({ accion, motivo, nuevoEstado })    });    return handleResponse(response);  }
     const response = await fetch(`${API_URL}/pedidos/cancelados/lista?${params}`, {
+validar: async (id, accion, motivo = '', nuevoEstado = 'En Proceso') => {    const response = await fetch(`${API_URL}/pedidos/${id}/validar`, {      method: 'PUT',      headers: getAuthHeaders(),      body: JSON.stringify({ accion, motivo, nuevoEstado })    });    return handleResponse(response);  }
       headers: getAuthHeaders()
+validar: async (id, accion, motivo = '', nuevoEstado = 'En Proceso') => {    const response = await fetch(`${API_URL}/pedidos/${id}/validar`, {      method: 'PUT',      headers: getAuthHeaders(),      body: JSON.stringify({ accion, motivo, nuevoEstado })    });    return handleResponse(response);  }
     });
+validar: async (id, accion, motivo = '', nuevoEstado = 'En Proceso') => {    const response = await fetch(`${API_URL}/pedidos/${id}/validar`, {      method: 'PUT',      headers: getAuthHeaders(),      body: JSON.stringify({ accion, motivo, nuevoEstado })    });    return handleResponse(response);  }
     return handleResponse(response);
-  },
-
-  validar: async (id, accion, motivo = '', nuevoEstado = 'En Proceso') => {
-    const response = await fetch(`${API_URL}/pedidos/${id}/validar`, {
-      method: 'PUT',
-      headers: getAuthHeaders(),
-      body: JSON.stringify({ accion, motivo, nuevoEstado })
-    });
-    return handleResponse(response);
+validar: async (id, accion, motivo = '', nuevoEstado = 'En Proceso') => {    const response = await fetch(`${API_URL}/pedidos/${id}/validar`, {      method: 'PUT',      headers: getAuthHeaders(),      body: JSON.stringify({ accion, motivo, nuevoEstado })    });    return handleResponse(response);  }
   }
+validar: async (id, accion, motivo = '', nuevoEstado = 'En Proceso') => {    const response = await fetch(`${API_URL}/pedidos/${id}/validar`, {      method: 'PUT',      headers: getAuthHeaders(),      body: JSON.stringify({ accion, motivo, nuevoEstado })    });    return handleResponse(response);  }
 };
 
 // API de compras
@@ -262,92 +250,6 @@ export const notificacionesAPI = {
   delete: async (id) => {
     const response = await fetch(`${API_URL}/notificaciones/${id}`, {
       method: 'DELETE',
-      headers: getAuthHeaders()
-    });
-    return handleResponse(response);
-  }
-};
-
-// API de centros de costo
-export const centrosCostoAPI = {
-  // Clientes
-  getAllClientes: async () => {
-    const response = await fetch(`${API_URL}/centros-costo/clientes`, {
-      headers: getAuthHeaders()
-    });
-    return handleResponse(response);
-  },
-
-  createCliente: async (nombre) => {
-    const response = await fetch(`${API_URL}/centros-costo/clientes`, {
-      method: 'POST',
-      headers: getAuthHeaders(),
-      body: JSON.stringify({ nombre })
-    });
-    return handleResponse(response);
-  },
-
-  updateCliente: async (id, data) => {
-    const response = await fetch(`${API_URL}/centros-costo/clientes/${id}`, {
-      method: 'PUT',
-      headers: getAuthHeaders(),
-      body: JSON.stringify(data)
-    });
-    return handleResponse(response);
-  },
-
-  deleteCliente: async (id) => {
-    const response = await fetch(`${API_URL}/centros-costo/clientes/${id}`, {
-      method: 'DELETE',
-      headers: getAuthHeaders()
-    });
-    return handleResponse(response);
-  },
-
-  // Obras
-  getAllObras: async () => {
-    const response = await fetch(`${API_URL}/centros-costo/obras`, {
-      headers: getAuthHeaders()
-    });
-    return handleResponse(response);
-  },
-
-  getObrasByCliente: async (clienteId) => {
-    const response = await fetch(`${API_URL}/centros-costo/obras/cliente/${clienteId}`, {
-      headers: getAuthHeaders()
-    });
-    return handleResponse(response);
-  },
-
-  createObra: async (clienteId, nombre) => {
-    const response = await fetch(`${API_URL}/centros-costo/obras`, {
-      method: 'POST',
-      headers: getAuthHeaders(),
-      body: JSON.stringify({ clienteId, nombre })
-    });
-    return handleResponse(response);
-  },
-
-  updateObra: async (id, data) => {
-    const response = await fetch(`${API_URL}/centros-costo/obras/${id}`, {
-      method: 'PUT',
-      headers: getAuthHeaders(),
-      body: JSON.stringify(data)
-    });
-    return handleResponse(response);
-  },
-
-  deleteObra: async (id) => {
-    const response = await fetch(`${API_URL}/centros-costo/obras/${id}`, {
-      method: 'DELETE',
-      headers: getAuthHeaders()
-    });
-    return handleResponse(response);
-  },
-
-  // Siguiente número
-  getSiguienteNumero: async (clienteId, obraId) => {
-    const response = await fetch(`${API_URL}/centros-costo/siguiente-numero/${clienteId}/${obraId}`, {
       headers: getAuthHeaders()
     });
     return handleResponse(response);

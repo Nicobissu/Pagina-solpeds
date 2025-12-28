@@ -1,4 +1,5 @@
 import db from '../config/database.js';
+import { processImages, deleteImagenes } from '../middleware/upload.js';
 
 export function getAllPedidos(req, res) {
   try {
@@ -39,14 +40,14 @@ export function getAllPedidos(req, res) {
       estado: p.estado,
       fecha: p.fecha,
       obra: p.obra,
+      centro_costo: p.centro_costo,
       descripcion: p.descripcion,
-      monto: p.monto,
+      imagenes: p.imagenes ? JSON.parse(p.imagenes) : [],
       solicitante: {
         id: p.solicitante_id,
         nombre: p.solicitante_nombre,
         avatar: p.solicitante_avatar
       },
-      fotos: p.fotos,
       urgente: Boolean(p.urgente),
       incompleto: Boolean(p.incompleto),
       comentarios: p.comentarios ? p.comentarios.split('|||').filter(c => c) : []
@@ -90,14 +91,14 @@ export function getPedidoById(req, res) {
       estado: pedido.estado,
       fecha: pedido.fecha,
       obra: pedido.obra,
+      centro_costo: pedido.centro_costo,
       descripcion: pedido.descripcion,
-      monto: pedido.monto,
+      imagenes: pedido.imagenes ? JSON.parse(pedido.imagenes) : [],
       solicitante: {
         id: pedido.solicitante_id,
         nombre: pedido.solicitante_nombre,
         avatar: pedido.solicitante_avatar
       },
-      fotos: pedido.fotos,
       urgente: Boolean(pedido.urgente),
       incompleto: Boolean(pedido.incompleto),
       comentarios
@@ -108,42 +109,85 @@ export function getPedidoById(req, res) {
   }
 }
 
-export function createPedido(req, res) {
+export async function createPedido(req, res) {
   try {
-    const { cliente, obra, descripcion, monto, urgente, fotos } = req.body;
+    const { clienteId, obraId, descripcion, urgente } = req.body;
     const solicitanteId = req.user.id;
+    const imagenes = req.files || [];
 
-    if (!cliente || !obra || !descripcion) {
-      return res.status(400).json({ error: 'Campos requeridos: cliente, obra, descripcion' });
+    if (!clienteId || !obraId || !descripcion) {
+      return res.status(400).json({ error: 'Campos requeridos: clienteId, obraId, descripcion' });
     }
+
+    // Obtener información del cliente y obra
+    const clienteStmt = db.prepare('SELECT nombre FROM clientes WHERE id = ? AND activo = 1');
+    const cliente = clienteStmt.get(clienteId);
+
+    const obraStmt = db.prepare('SELECT nombre FROM obras WHERE id = ? AND activo = 1');
+    const obra = obraStmt.get(obraId);
+
+    if (!cliente || !obra) {
+      return res.status(400).json({ error: 'Cliente u obra no encontrados o inactivos' });
+    }
+
+    // Obtener el siguiente número secuencial
+    const numeroStmt = db.prepare(`
+      SELECT MAX(numero_secuencial) as ultimo_numero
+      FROM pedidos
+      WHERE cliente_id = ? AND obra_id = ?
+    `);
+    const numeroResult = numeroStmt.get(clienteId, obraId);
+    const siguienteNumero = (numeroResult.ultimo_numero || 0) + 1;
+
+    // Generar el centro de costo completo
+    const centroCosto = `${cliente.nombre}-${obra.nombre}-${siguienteNumero}`;
 
     const fecha = new Date().toISOString().split('T')[0];
 
     const stmt = db.prepare(`
       INSERT INTO pedidos (
-        cliente, obra, descripcion, monto, solicitante_id,
-        fecha, urgente, fotos, incompleto
+        cliente, obra, cliente_id, obra_id, numero_secuencial, centro_costo,
+        descripcion, solicitante_id,
+        fecha, urgente, incompleto, imagenes
       )
-      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
     `);
 
-    const incompleto = !fotos || fotos === 0 || !monto;
+    // Crear pedido sin imágenes primero
+    const incompleto = imagenes.length === 0 ? 1 : 0;
     const result = stmt.run(
-      cliente,
-      obra,
+      cliente.nombre,
+      obra.nombre,
+      clienteId,
+      obraId,
+      siguienteNumero,
+      centroCosto,
       descripcion,
-      monto || null,
       solicitanteId,
       fecha,
       urgente ? 1 : 0,
-      fotos || 0,
-      incompleto ? 1 : 0
+      incompleto,
+      null // Imágenes se guardarán después
     );
+
+    const pedidoId = result.lastInsertRowid;
+
+    // Procesar y guardar imágenes si existen
+    let imagenesGuardadas = [];
+    if (imagenes.length > 0) {
+      imagenesGuardadas = await processImages(imagenes, pedidoId);
+
+      // Actualizar pedido con las rutas de las imágenes
+      const updateStmt = db.prepare('UPDATE pedidos SET imagenes = ? WHERE id = ?');
+      updateStmt.run(JSON.stringify(imagenesGuardadas.map(img => img.relativePath)), pedidoId);
+    }
 
     res.status(201).json({
       success: true,
       message: 'Pedido creado exitosamente',
-      pedidoId: result.lastInsertRowid
+      pedidoId: pedidoId,
+      centroCosto: centroCosto,
+      imagenes: imagenesGuardadas.length
     });
   } catch (error) {
     console.error('Error al crear pedido:', error);
@@ -309,14 +353,14 @@ export function getPedidosCancelados(req, res) {
       estado: p.estado,
       fecha: p.fecha,
       obra: p.obra,
+      centro_costo: p.centro_costo,
       descripcion: p.descripcion,
-      monto: p.monto,
+      imagenes: p.imagenes ? JSON.parse(p.imagenes) : [],
       solicitante: {
         id: p.solicitante_id,
         nombre: p.solicitante_nombre,
         avatar: p.solicitante_avatar
       },
-      fotos: p.fotos,
       urgente: Boolean(p.urgente),
       incompleto: Boolean(p.incompleto),
       cancelado: Boolean(p.cancelado),
@@ -334,6 +378,63 @@ export function getPedidosCancelados(req, res) {
     res.json(formattedPedidos);
   } catch (error) {
     console.error('Error al obtener pedidos cancelados:', error);
+    res.status(500).json({ error: 'Error interno del servidor' });
+  }
+}
+
+export function validarPedido(req, res) {
+  try {
+    const { id } = req.params;
+    const { accion, motivo } = req.body; // accion: 'validar' o 'rechazar'
+    const validadorId = req.user.id;
+
+    // Verificar que el pedido existe
+    const pedido = db.prepare('SELECT * FROM pedidos WHERE id = ?').get(id);
+    if (!pedido) {
+      return res.status(404).json({ error: 'Pedido no encontrado' });
+    }
+
+    // Verificar que está en estado Pendiente Validación
+    if (pedido.estado !== 'Pendiente Validación') {
+      return res.status(400).json({ error: 'El pedido no está en estado Pendiente Validación' });
+    }
+
+    if (accion === 'validar') {
+      // Eliminar imágenes del pedido validado
+      deleteImagenes(id);
+
+      // Validar el pedido
+      const stmt = db.prepare(`
+        UPDATE pedidos
+        SET validado = 1,
+            validado_por_id = ?,
+            fecha_validacion = CURRENT_TIMESTAMP,
+            estado = 'Validado',
+            imagenes = NULL,
+            updated_at = CURRENT_TIMESTAMP
+        WHERE id = ?
+      `);
+      stmt.run(validadorId, id);
+
+      res.json({ success: true, message: 'Pedido validado exitosamente' });
+    } else if (accion === 'rechazar') {
+      // Rechazar el pedido (volver a En Proceso o Revisado según indique el motivo)
+      const nuevoEstado = req.body.nuevoEstado || 'En Proceso';
+      
+      const stmt = db.prepare(`
+        UPDATE pedidos
+        SET estado = ?,
+            updated_at = CURRENT_TIMESTAMP
+        WHERE id = ?
+      `);
+      stmt.run(nuevoEstado, id);
+
+      res.json({ success: true, message: 'Pedido rechazado, devuelto a ' + nuevoEstado });
+    } else {
+      return res.status(400).json({ error: 'Acción no válida' });
+    }
+  } catch (error) {
+    console.error('Error al validar pedido:', error);
     res.status(500).json({ error: 'Error interno del servidor' });
   }
 }

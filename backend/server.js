@@ -10,6 +10,7 @@ import authRoutes from './routes/auth.js';
 import pedidosRoutes from './routes/pedidos.js';
 import comprasRoutes from './routes/compras.js';
 import notificacionesRoutes from './routes/notificaciones.js';
+import centrosCostoRoutes from './routes/centrosCosto.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
@@ -47,6 +48,9 @@ app.use(cors({
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
+// Servir archivos estáticos (imágenes)
+app.use('/uploads', express.static(join(__dirname, 'uploads')));
+
 // Logging middleware
 app.use((req, res, next) => {
   console.log(`${new Date().toISOString()} - ${req.method} ${req.path}`);
@@ -58,6 +62,7 @@ app.use('/api/auth', authRoutes);
 app.use('/api/pedidos', pedidosRoutes);
 app.use('/api/compras', comprasRoutes);
 app.use('/api/notificaciones', notificacionesRoutes);
+app.use('/api/centros-costo', centrosCostoRoutes);
 
 // Ruta de prueba
 app.get('/api/health', (req, res) => {

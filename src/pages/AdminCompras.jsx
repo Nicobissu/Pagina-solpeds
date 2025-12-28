@@ -199,6 +199,10 @@ function AdminCompras() {
             <span className="nav-icon">📊</span>
             <span>Reportes</span>
           </button>
+          <button className="admin-nav-item" onClick={() => navigate('/admin/centros-costo')}>
+            <span className="nav-icon">🏢</span>
+            <span>Centros de Costo</span>
+          </button>
           <button className="admin-nav-item" onClick={() => navigate('/admin/configuracion')}>
             <span className="nav-icon">⚙️</span>
             <span>Configuración</span>
@@ -288,7 +292,6 @@ function AdminCompras() {
                 <th>FECHA</th>
                 <th>PROVEEDOR</th>
                 <th>OBRA</th>
-                <th>DESCRIPCIÓN</th>
                 <th>MONTO</th>
                 <th>TICKET</th>
                 <th>SOLICITANTE</th>
@@ -303,7 +306,6 @@ function AdminCompras() {
                   <td>{new Date(compra.cancelado ? compra.fecha_cancelacion : compra.fecha).toLocaleDateString('es-ES', { day: '2-digit', month: 'short' })}</td>
                   <td><strong>{compra.proveedor}</strong></td>
                   <td>{compra.obra}</td>
-                  <td className="descripcion-cell">{compra.descripcion?.substring(0, 50)}...</td>
                   <td>${compra.monto.toFixed(2)}</td>
                   <td>
                     <div className="estado-cell">

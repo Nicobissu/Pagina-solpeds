@@ -39,15 +39,21 @@ export function AuthProvider({ children }) {
 
       if (token && savedUser) {
         try {
-          // Verificar que el token aún es válido
+          // Primero cargar el usuario del localStorage
+          setUser(JSON.parse(savedUser))
+
+          // Verificar que el token aún es válido en segundo plano
           const response = await authAPI.verifyToken()
           if (response.success) {
+            // Actualizar con datos frescos del servidor
             setUser(response.user)
+            localStorage.setItem('user', JSON.stringify(response.user))
           } else {
             // Token inválido, limpiar
             logout()
           }
         } catch (error) {
+          // Si falla la verificación, limpiar la sesión
           console.error('Error verificando token:', error)
           logout()
         }

@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react'
 import { useAuth } from '../contexts/AuthContext'
-import { pedidosAPI, comprasAPI } from '../services/api'
+import { pedidosAPI, comprasAPI, centrosCostoAPI } from '../services/api'
 import Layout from '../components/Layout'
 import Modal from '../components/Modal'
 import './Dashboard.css'
@@ -13,14 +13,20 @@ function Dashboard() {
   const [misCompras, setMisCompras] = useState([])
   const [loading, setLoading] = useState(true)
 
+  // Centros de costo
+  const [clientes, setClientes] = useState([])
+  const [obras, setObras] = useState([])
+  const [obrasDelCliente, setObrasDelCliente] = useState([])
+  const [siguienteNumero, setSiguienteNumero] = useState(null)
+
   // Formularios
   const [pedidoForm, setPedidoForm] = useState({
-    cliente: '',
-    obra: '',
-    monto: '',
-    urgente: false,
-    fotos: 0
+    clienteId: '',
+    obraId: '',
+    urgente: false
   })
+
+  const [imagenes, setImagenes] = useState([])
 
   const [productos, setProductos] = useState([
     { nombre: '', unidad: '', cantidad: '', descripcion: '' }
@@ -37,6 +43,7 @@ function Dashboard() {
 
   useEffect(() => {
     cargarDatos()
+    cargarCentrosCosto()
   }, [user])
 
   const cargarDatos = async () => {
@@ -55,6 +62,46 @@ function Dashboard() {
     }
   }
 
+  const cargarCentrosCosto = async () => {
+    try {
+      const [clientesData, obrasData] = await Promise.all([
+        centrosCostoAPI.getAllClientes(),
+        centrosCostoAPI.getAllObras()
+      ])
+      setClientes(clientesData)
+      setObras(obrasData)
+    } catch (error) {
+      console.error('Error al cargar centros de costo:', error)
+    }
+  }
+
+  const handleClienteChange = async (clienteId) => {
+    setPedidoForm({ ...pedidoForm, clienteId, obraId: '' })
+    setSiguienteNumero(null)
+
+    if (clienteId) {
+      const obrasFiltradas = obras.filter(o => o.cliente_id === parseInt(clienteId))
+      setObrasDelCliente(obrasFiltradas)
+    } else {
+      setObrasDelCliente([])
+    }
+  }
+
+  const handleObraChange = async (obraId) => {
+    setPedidoForm({ ...pedidoForm, obraId })
+
+    if (pedidoForm.clienteId && obraId) {
+      try {
+        const { siguienteNumero: numero } = await centrosCostoAPI.getSiguienteNumero(pedidoForm.clienteId, obraId)
+        setSiguienteNumero(numero)
+      } catch (error) {
+        console.error('Error al obtener siguiente número:', error)
+      }
+    } else {
+      setSiguienteNumero(null)
+    }
+  }
+
   const handleProductoChange = (index, field, value) => {
     const nuevosProductos = [...productos]
     nuevosProductos[index][field] = value
@@ -70,17 +117,28 @@ function Dashboard() {
   const cerrarModalPedido = () => {
     setShowPedidoModal(false)
     setPedidoForm({
-      cliente: '',
-      obra: '',
-      monto: '',
-      urgente: false,
-      fotos: 0
+      clienteId: '',
+      obraId: '',
+      urgente: false
     })
     setProductos([{ nombre: '', unidad: '', cantidad: '', descripcion: '' }])
+    setImagenes([])
+    setObrasDelCliente([])
+    setSiguienteNumero(null)
+  }
+
+  const handleImagenesChange = (e) => {
+    const files = Array.from(e.target.files)
+    setImagenes(files)
   }
 
   const handlePedidoSubmit = async (e) => {
     e.preventDefault()
+
+    if (!pedidoForm.clienteId || !pedidoForm.obraId) {
+      alert('Debes seleccionar un cliente y una obra')
+      return
+    }
 
     // Filtrar productos completados (que tengan al menos nombre)
     const productosValidos = productos.filter(p => p.nombre.trim() !== '')
@@ -94,11 +152,19 @@ function Dashboard() {
     const descripcion = JSON.stringify(productosValidos)
 
     try {
-      await pedidosAPI.create({
-        ...pedidoForm,
-        descripcion,
-        monto: pedidoForm.monto ? parseFloat(pedidoForm.monto) : null
+      // Crear FormData para enviar archivos
+      const formData = new FormData()
+      formData.append('clienteId', parseInt(pedidoForm.clienteId))
+      formData.append('obraId', parseInt(pedidoForm.obraId))
+      formData.append('descripcion', descripcion)
+      formData.append('urgente', pedidoForm.urgente)
+
+      // Agregar imágenes
+      imagenes.forEach((imagen) => {
+        formData.append('imagenes', imagen)
       })
+
+      await pedidosAPI.createWithImages(formData)
       cerrarModalPedido()
       // Recargar los datos
       await cargarDatos()
@@ -322,25 +388,55 @@ function Dashboard() {
           <Modal title="Crear Nuevo Pedido" onClose={cerrarModalPedido}>
             <form className="modal-form" onSubmit={handlePedidoSubmit}>
               <div className="form-group">
-                <label>Cliente/Taller</label>
-                <input
-                  type="text"
-                  placeholder="Ej: Taller Central"
-                  value={pedidoForm.cliente}
-                  onChange={(e) => setPedidoForm({ ...pedidoForm, cliente: e.target.value })}
+                <label>Cliente *</label>
+                <select
+                  value={pedidoForm.clienteId}
+                  onChange={(e) => handleClienteChange(e.target.value)}
                   required
-                />
+                >
+                  <option value="">Selecciona un cliente</option>
+                  {clientes.map(cliente => (
+                    <option key={cliente.id} value={cliente.id}>
+                      {cliente.nombre}
+                    </option>
+                  ))}
+                </select>
               </div>
               <div className="form-group">
-                <label>Obra</label>
-                <input
-                  type="text"
-                  placeholder="Ej: Torre Central"
-                  value={pedidoForm.obra}
-                  onChange={(e) => setPedidoForm({ ...pedidoForm, obra: e.target.value })}
+                <label>Obra / Trabajo *</label>
+                <select
+                  value={pedidoForm.obraId}
+                  onChange={(e) => handleObraChange(e.target.value)}
                   required
-                />
+                  disabled={!pedidoForm.clienteId}
+                >
+                  <option value="">Selecciona una obra</option>
+                  {obrasDelCliente.map(obra => (
+                    <option key={obra.id} value={obra.id}>
+                      {obra.nombre}
+                    </option>
+                  ))}
+                </select>
+                {!pedidoForm.clienteId && (
+                  <small style={{ color: '#666', fontSize: '0.85em' }}>
+                    Primero selecciona un cliente
+                  </small>
+                )}
               </div>
+              {siguienteNumero !== null && (
+                <div className="form-group">
+                  <label>Número de Pedido</label>
+                  <input
+                    type="text"
+                    value={`${clientes.find(c => c.id === parseInt(pedidoForm.clienteId))?.nombre}-${obrasDelCliente.find(o => o.id === parseInt(pedidoForm.obraId))?.nombre}-${siguienteNumero}`}
+                    disabled
+                    style={{ backgroundColor: '#f0f0f0', color: '#333' }}
+                  />
+                  <small style={{ color: '#666', fontSize: '0.85em' }}>
+                    Este número se asignará automáticamente
+                  </small>
+                </div>
+              )}
               <div className="form-group">
                 <label>Productos</label>
                 <div style={{ overflowX: 'auto' }}>
@@ -416,23 +512,20 @@ function Dashboard() {
                 </div>
               </div>
               <div className="form-group">
-                <label>Monto (opcional)</label>
+                <label>Imágenes (opcional - máximo 10)</label>
                 <input
-                  type="number"
-                  step="0.01"
-                  placeholder="0.00"
-                  value={pedidoForm.monto}
-                  onChange={(e) => setPedidoForm({ ...pedidoForm, monto: e.target.value })}
+                  type="file"
+                  accept="image/*"
+                  multiple
+                  onChange={handleImagenesChange}
+                  style={{ padding: '8px', border: '1px solid #ddd', borderRadius: '4px', width: '100%' }}
                 />
-              </div>
-              <div className="form-group">
-                <label>Número de fotos</label>
-                <input
-                  type="number"
-                  placeholder="0"
-                  value={pedidoForm.fotos}
-                  onChange={(e) => setPedidoForm({ ...pedidoForm, fotos: parseInt(e.target.value) || 0 })}
-                />
+                {imagenes.length > 0 && (
+                  <small style={{ color: '#666', fontSize: '0.85em', display: 'block', marginTop: '5px' }}>
+                    {imagenes.length} imagen{imagenes.length > 1 ? 'es' : ''} seleccionada{imagenes.length > 1 ? 's' : ''}
+                    (se comprimirán automáticamente)
+                  </small>
+                )}
               </div>
               <div className="form-group">
                 <label>

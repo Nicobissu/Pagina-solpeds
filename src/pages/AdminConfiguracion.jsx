@@ -74,6 +74,10 @@ function AdminConfiguracion() {
             <span className="nav-icon">📊</span>
             <span>Reportes</span>
           </button>
+          <button className="admin-nav-item" onClick={() => navigate('/admin/centros-costo')}>
+            <span className="nav-icon">🏢</span>
+            <span>Centros de Costo</span>
+          </button>
           <button className="admin-nav-item active">
             <span className="nav-icon">⚙️</span>
             <span>Configuración</span>

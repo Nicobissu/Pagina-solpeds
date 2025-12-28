@@ -94,7 +94,9 @@ function AdminPedidos() {
     if (vista === 'activos' && filtroEstado !== 'todos') {
       if (filtroEstado === 'registrado') pasa = pedido.estado === 'Registrado'
       else if (filtroEstado === 'proceso') pasa = pedido.estado === 'En Proceso'
-      else if (filtroEstado === 'revisado') pasa = pedido.estado === 'Revisado'
+      else if (filtroEstado === 'aRevisar') pasa = pedido.estado === 'Revisado'
+      else if (filtroEstado === 'validacion') pasa = pedido.estado === 'Pendiente Validación'
+      else if (filtroEstado === 'validado') pasa = pedido.estado === 'Validado'
       else if (filtroEstado === 'completado') pasa = pedido.estado === 'Completado'
       else if (filtroEstado === 'cerrado') pasa = pedido.estado === 'Cerrado'
       else if (filtroEstado === 'urgentes') pasa = pedido.urgente
@@ -119,7 +121,9 @@ function AdminPedidos() {
     todos: pedidos.length,
     registrado: pedidos.filter(p => p.estado === 'Registrado').length,
     proceso: pedidos.filter(p => p.estado === 'En Proceso').length,
-    revisado: pedidos.filter(p => p.estado === 'Revisado').length,
+    aRevisar: pedidos.filter(p => p.estado === 'Revisado').length,
+    validacion: pedidos.filter(p => p.estado === 'Pendiente Validación').length,
+    validado: pedidos.filter(p => p.estado === 'Validado').length,
     completado: pedidos.filter(p => p.estado === 'Completado').length,
     cerrado: pedidos.filter(p => p.estado === 'Cerrado').length,
     urgentes: pedidos.filter(p => p.urgente).length,
@@ -138,9 +142,19 @@ function AdminPedidos() {
       return
     }
 
+    // Bloquear cambios de estado si el pedido está en Pendiente Validación
+    if (itemSeleccionado.estado === 'Pendiente Validación') {
+      alert('No puedes cambiar el estado de un pedido que está en Pendiente Validación. Espera a que el validador lo apruebe o rechace.')
+      return
+    }
+
     try {
       console.log('Actualizando pedido:', itemSeleccionado.id, 'a estado:', nuevoEstado)
-      const updateResult = await pedidosAPI.update(itemSeleccionado.id, { estado: nuevoEstado })
+
+      // Si el nuevo estado es "Revisado", automáticamente cambiar a "Pendiente Validación"
+      const estadoFinal = nuevoEstado === 'Revisado' ? 'Pendiente Validación' : nuevoEstado
+
+      const updateResult = await pedidosAPI.update(itemSeleccionado.id, { estado: estadoFinal })
       console.log('Resultado update:', updateResult)
 
       console.log('Creando notificación para usuario:', itemSeleccionado.solicitante.id)
@@ -148,14 +162,14 @@ function AdminPedidos() {
         usuario_id: itemSeleccionado.solicitante.id,
         tipo: 'info',
         titulo: `Estado de pedido actualizado`,
-        mensaje: `Tu pedido #${itemSeleccionado.id} cambió a estado: ${nuevoEstado}`,
+        mensaje: `Tu pedido #${itemSeleccionado.id} cambió a estado: ${estadoFinal}`,
         icono: '📝'
       })
       console.log('Resultado notificación:', notifResult)
 
       await cargarPedidos()
       setShowModal(false)
-      alert('Estado actualizado exitosamente')
+      alert(`Estado actualizado a: ${estadoFinal}`)
     } catch (error) {
       console.error('Error completo:', error)
       alert(`Error al cambiar el estado: ${error.message}`)
@@ -252,6 +266,10 @@ function AdminPedidos() {
             <span className="nav-icon">📊</span>
             <span>Reportes</span>
           </button>
+          <button className="admin-nav-item" onClick={() => navigate('/admin/centros-costo')}>
+            <span className="nav-icon">🏢</span>
+            <span>Centros de Costo</span>
+          </button>
           <button className="admin-nav-item" onClick={() => navigate('/admin/configuracion')}>
             <span className="nav-icon">⚙️</span>
             <span>Configuración</span>
@@ -314,8 +332,14 @@ function AdminPedidos() {
           <button className={`admin-tab ${filtroEstado === 'proceso' ? 'active' : ''}`} onClick={() => setFiltroEstado('proceso')}>
             En Proceso <span className="tab-count">{contadores.proceso}</span>
           </button>
-          <button className={`admin-tab ${filtroEstado === 'revisado' ? 'active' : ''}`} onClick={() => setFiltroEstado('revisado')}>
-            Revisado <span className="tab-count">{contadores.revisado}</span>
+          <button className={`admin-tab ${filtroEstado === 'aRevisar' ? 'active' : ''}`} onClick={() => setFiltroEstado('aRevisar')}>
+            🔄 A Revisar <span className="tab-count">{contadores.aRevisar}</span>
+          </button>
+          <button className={`admin-tab ${filtroEstado === 'validacion' ? 'active' : ''}`} onClick={() => setFiltroEstado('validacion')}>
+            ⏳ Pendiente Validación <span className="tab-count">{contadores.validacion}</span>
+          </button>
+          <button className={`admin-tab ${filtroEstado === 'validado' ? 'active' : ''}`} onClick={() => setFiltroEstado('validado')}>
+            ✅ Validado <span className="tab-count">{contadores.validado}</span>
           </button>
           <button className={`admin-tab ${filtroEstado === 'completado' ? 'active' : ''}`} onClick={() => setFiltroEstado('completado')}>
             Completado <span className="tab-count">{contadores.completado}</span>
@@ -466,14 +490,52 @@ function AdminPedidos() {
               })()}
             </div>
 
+            {/* Visor de Imágenes */}
+            {itemSeleccionado.imagenes && itemSeleccionado.imagenes.length > 0 && (
+              <div className="info-section" style={{ marginTop: '20px' }}>
+                <h3>Imágenes del Pedido ({itemSeleccionado.imagenes.length})</h3>
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(150px, 1fr))', gap: '10px', marginTop: '10px' }}>
+                  {itemSeleccionado.imagenes.map((imagen, index) => {
+                    const imageUrl = `http://localhost:3001${imagen}`;
+                    return (
+                      <div key={index} style={{ position: 'relative', paddingBottom: '100%', backgroundColor: '#f5f5f5', borderRadius: '8px', overflow: 'hidden', cursor: 'pointer', border: '2px solid #ddd' }}>
+                        <img
+                          src={imageUrl}
+                          alt={`Imagen ${index + 1}`}
+                          style={{ position: 'absolute', top: 0, left: 0, width: '100%', height: '100%', objectFit: 'cover' }}
+                          onClick={() => window.open(imageUrl, '_blank')}
+                          title="Click para ver en tamaño completo"
+                        />
+                      </div>
+                    );
+                  })}
+                </div>
+                <p style={{ fontSize: '0.85em', color: '#666', marginTop: '10px' }}>
+                  💡 Click en cualquier imagen para verla en tamaño completo
+                </p>
+              </div>
+            )}
+
+            {itemSeleccionado.imagenes && itemSeleccionado.imagenes.length === 0 && (
+              <div className="info-section" style={{ marginTop: '20px' }}>
+                <h3>Imágenes del Pedido</h3>
+                <p style={{ color: '#999', fontStyle: 'italic', marginTop: '10px' }}>No hay imágenes adjuntas a este pedido</p>
+              </div>
+            )}
+
             <div className="form-group">
               <h3>Cambiar Estado</h3>
+              {itemSeleccionado.estado === 'Pendiente Validación' && (
+                <div className="info-message info-warning" style={{ marginBottom: '15px', padding: '10px', backgroundColor: '#fff3cd', border: '1px solid #ffc107', borderRadius: '4px' }}>
+                  ⏳ Este pedido está en proceso de validación. No puedes cambiar su estado hasta que el validador lo apruebe o rechace.
+                </div>
+              )}
               <div className="estado-buttons">
-                <button onClick={() => handleCambiarEstado('Registrado')} className="btn-estado">Registrado</button>
-                <button onClick={() => handleCambiarEstado('En Proceso')} className="btn-estado">En Proceso</button>
-                <button onClick={() => handleCambiarEstado('Revisado')} className="btn-estado">Revisado</button>
-                <button onClick={() => handleCambiarEstado('Completado')} className="btn-estado">Completado</button>
-                <button onClick={() => handleCambiarEstado('Cerrado')} className="btn-estado">Cerrado</button>
+                <button onClick={() => handleCambiarEstado('Registrado')} className="btn-estado" disabled={itemSeleccionado.estado === 'Pendiente Validación'}>Registrado</button>
+                <button onClick={() => handleCambiarEstado('En Proceso')} className="btn-estado" disabled={itemSeleccionado.estado === 'Pendiente Validación'}>En Proceso</button>
+                <button onClick={() => handleCambiarEstado('Revisado')} className="btn-estado" disabled={itemSeleccionado.estado === 'Pendiente Validación'}>Revisado</button>
+                <button onClick={() => handleCambiarEstado('Completado')} className="btn-estado" disabled={itemSeleccionado.estado === 'Pendiente Validación'}>Completado</button>
+                <button onClick={() => handleCambiarEstado('Cerrado')} className="btn-estado" disabled={itemSeleccionado.estado === 'Pendiente Validación'}>Cerrado</button>
               </div>
             </div>
 

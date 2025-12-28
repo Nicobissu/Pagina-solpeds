@@ -3,7 +3,16 @@
     "allow": [
       "Bash(npm run build:*)",
       "Bash(grep:*)",
-      "Bash(curl:*)"
+      "Bash(curl:*)",
+      "Bash(cat:*)",
+      "Bash(node --version:*)",
+      "Bash(npm run dev:*)",
+      "Bash(cp:*)",
+      "Bash(node utils/addValidador.js:*)",
+      "Bash(netstat:*)",
+      "Bash(findstr:*)",
+      "Bash(taskkill:*)",
+      "Bash(npm install:*)"
     ]
   }
 }

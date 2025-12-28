@@ -23,6 +23,8 @@ function Login() {
     if (result.success) {
       if (result.user.role === 'admin') {
         navigate('/admin')
+      } else if (result.user.role === 'validador') {
+        navigate('/validador')
       } else {
         navigate('/')
       }
@@ -120,6 +122,7 @@ function Login() {
               <ul>
                 <li>Usuario: <strong>juan</strong> / Contraseña: <strong>juan</strong> (Usuario normal)</li>
                 <li>Usuario: <strong>admin</strong> / Contraseña: <strong>admin</strong> (Administrador)</li>
+                <li>Usuario: <strong>validador</strong> / Contraseña: <strong>validador</strong> (Validador)</li>
               </ul>
             </div>
           </form>

@@ -131,6 +131,10 @@ function AdminUsuarios() {
             <span className="nav-icon">📊</span>
             <span>Reportes</span>
           </button>
+          <button className="admin-nav-item" onClick={() => navigate('/admin/centros-costo')}>
+            <span className="nav-icon">🏢</span>
+            <span>Centros de Costo</span>
+          </button>
           <button className="admin-nav-item" onClick={() => navigate('/admin/configuracion')}>
             <span className="nav-icon">⚙️</span>
             <span>Configuración</span>

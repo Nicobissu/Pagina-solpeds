@@ -191,6 +191,31 @@ export async function initDatabase() {
     )
   `);
 
+  // Tabla de clientes (centros de costo)
+  db.exec(`
+    CREATE TABLE IF NOT EXISTS clientes (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      nombre TEXT UNIQUE NOT NULL,
+      activo BOOLEAN DEFAULT 1,
+      created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+      updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
+    )
+  `);
+
+  // Tabla de obras (centros de costo por cliente)
+  db.exec(`
+    CREATE TABLE IF NOT EXISTS obras (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      cliente_id INTEGER NOT NULL,
+      nombre TEXT NOT NULL,
+      activo BOOLEAN DEFAULT 1,
+      created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+      updated_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+      FOREIGN KEY (cliente_id) REFERENCES clientes(id) ON DELETE CASCADE,
+      UNIQUE(cliente_id, nombre)
+    )
+  `);
+
   // Migraciones: agregar columnas de cancelación si no existen
   try {
     // Verificar si las columnas de cancelación existen en pedidos
@@ -204,6 +229,29 @@ export async function initDatabase() {
       db.exec('ALTER TABLE pedidos ADD COLUMN cancelado_por_id INTEGER');
       db.exec('ALTER TABLE pedidos ADD COLUMN fecha_cancelacion DATETIME');
       console.log('✅ Columnas de cancelación agregadas a pedidos');
+    }
+
+    if (!pedidosColumns.includes('validado')) {
+      console.log('🔄 Migrando tabla pedidos: agregando columnas de validación...');
+      db.exec('ALTER TABLE pedidos ADD COLUMN validado BOOLEAN DEFAULT 0');
+      db.exec('ALTER TABLE pedidos ADD COLUMN validado_por_id INTEGER');
+      db.exec('ALTER TABLE pedidos ADD COLUMN fecha_validacion DATETIME');
+      console.log('✅ Columnas de validación agregadas a pedidos');
+    }
+
+    if (!pedidosColumns.includes('cliente_id')) {
+      console.log('🔄 Migrando tabla pedidos: agregando columnas de centro de costo...');
+      db.exec('ALTER TABLE pedidos ADD COLUMN cliente_id INTEGER');
+      db.exec('ALTER TABLE pedidos ADD COLUMN obra_id INTEGER');
+      db.exec('ALTER TABLE pedidos ADD COLUMN numero_secuencial INTEGER');
+      db.exec('ALTER TABLE pedidos ADD COLUMN centro_costo TEXT');
+      console.log('✅ Columnas de centro de costo agregadas a pedidos');
+    }
+
+    if (!pedidosColumns.includes('imagenes')) {
+      console.log('🔄 Migrando tabla pedidos: agregando columna de imágenes...');
+      db.exec('ALTER TABLE pedidos ADD COLUMN imagenes TEXT');
+      console.log('✅ Columna de imágenes agregada a pedidos');
     }
 
     // Verificar si las columnas de cancelación existen en compras
@@ -244,6 +292,7 @@ function initDefaultUsers() {
 
     const usuarios = [
       { username: 'admin', password: 'admin', nombre: 'Roberto Gómez', rol: 'admin' },
+      { username: 'validador', password: 'validador', nombre: 'María Valdez', rol: 'validador' },
       { username: 'juan', password: 'juan', nombre: 'Juan P.', rol: 'user' },
       { username: 'luis', password: 'luis', nombre: 'Luis M.', rol: 'user' },
       { username: 'carlos', password: 'carlos', nombre: 'Carlos R.', rol: 'user' },
@@ -265,6 +314,7 @@ function initDefaultUsers() {
     console.log('╔══════════════════════════════════════════════╗');
     console.log('║   Usuarios de prueba disponibles:           ║');
     console.log('║   • admin / admin (Administrador)            ║');
+    console.log('║   • validador / validador (Validador)        ║');
     console.log('║   • juan / juan (Usuario)                    ║');
     console.log('║   • luis / luis (Usuario)                    ║');
     console.log('║   • carlos / carlos (Usuario)                ║');
